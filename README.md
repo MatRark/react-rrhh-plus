@@ -1,16 +1,103 @@
-# React + Vite
+# React RRHH Plus  
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules. Juan Mtatztztzt
+Frontend del sistema **RRHH Plus**, un sistema web dirigido a las áreas de Recursos Humanos con el objetivo de **automatizar tareas** como:  
+- Gestión de empleados  
+- Control de asistencias  
+- Evaluaciones de desempeño  
+- Procesos de reclutamiento  
 
-Currently, two official plugins are available:
+Este proyecto está desarrollado en **React** con **Vite**, utilizando **TailwindCSS** para estilos y **React Router** para la navegación.  
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## Requisitos previos  
 
-The React Compiler is not enabled on this template. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Asegúrate de tener instalado:  
+- [Node.js](https://nodejs.org/) v18 o superior  
+- npm (incluido con Node.js)  
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Instalación  
+
+Clona el repositorio y entra en el directorio del proyecto:  
+
+```bash
+git clone https://github.com/MatRark/react-rrhh-plus.git
+cd react-rrhh-plus
+```
+Instala las dependencias:
+
+```bash
+npm install
+```
+
+---
+
+## Configuración
+
+Si el proyecto requiere variables de entorno, crea un archivo .env en la raíz del proyecto.
+
+Ejemplo:
+
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+
+---
+
+## Ejecución en desarrollo
+
+Para iniciar el proyecto en modo desarrollo:
+
+```bash
+npm run dev
+```
+El proyecto estará disponible en:
+- [http://localhost:5173/](http://localhost:5173/)
+
+---
+
+## Build para producción
+
+Para generar una versión optimizada:
+
+```bash
+npm run build
+```
+El resultado se encontrará en la carpeta:
+
+```bash
+/dist
+```
+
+---
+
+## Estructura de carpetas
+
+La organización del código sigue un patrón modular por features, con separación de componentes reutilizables, páginas y servicios:
+
+```bash
+📁 src/
+├── 📁 assets/        # Imágenes, íconos y recursos estáticos
+├── 📁 components/    # Componentes reutilizables (botones, inputs, modales, etc.)
+├── 📁 features/      # Módulos específicos del dominio (empleados, asistencias, etc.)
+├── 📁 hooks/         # Custom hooks para lógica reutilizable
+├── 📁 layouts/       # Layouts generales de la aplicación
+├── 📁 pages/         # Páginas del sistema (con React Router)
+├── 📁 services/      # Comunicación con APIs externas
+├── 📁 styles/        # Estilos globales y configuración de Tailwind
+├── 📁 utils/         # Funciones utilitarias y helpers
+├── 📄 App.jsx        # Configuración principal de la app
+├── 📄 main.jsx       # Punto de entrada de la aplicación
+```
+
+--- 
+
+## Tecnologías principales
+
+- [React](https://react.dev/)
+- [Vite](https://vite.dev/)
+- [TailwindCSS](https://tailwindcss.com/)
+- [React Router](https://reactrouter.com/)
+- [ESLint](https://eslint.org/)

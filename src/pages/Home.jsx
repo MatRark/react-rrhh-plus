@@ -1,105 +1,98 @@
 // src/pages/Home.jsx
 export default function Home() {
   return (
-    <div className="font-display bg-background-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark">
+    <div className="bg-background-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark min-h-screen">
       <div className="flex h-screen">
-        {/* Barra lateral */}
-        <aside className="w-64 bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
-          {/* Encabezado del logo */}
+        {/* Sidebar */}
+        <aside className="sidebar flex flex-col">
+          {/* Encabezado logo */}
           <div className="flex items-center gap-3 px-6 h-16 border-b border-border-light dark:border-border-dark">
-            <span className="material-symbols-outlined text-4xl text-blue-600">
+            <span className="material-symbols-outlined text-4xl text-primary" aria-hidden="true">
               apps
             </span>
             <h1 className="text-xl font-bold">RRHH-PLUS</h1>
           </div>
 
           {/* Navegación */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            <a
-              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
-              href="#"
-            >
-              <span className="material-symbols-outlined">dashboard</span>
-              Panel de Control
+          <nav className="flex-1 px-2 py-4" aria-label="Principal">
+            <a href="#" className="nav-item">
+              <span className="material-symbols-outlined" aria-hidden="true">dashboard</span>
+              <span>Panel de Control</span>
             </a>
 
-            <a
-              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT bg-primary/10 text-primary font-semibold"
-              href="#"
-            >
-              <span className="material-symbols-outlined">groups</span>
-              Empleados
+            {/* Ejemplo de item activo según la vista */}
+            <a href="#" className="nav-item active" aria-current="page">
+              <span className="material-symbols-outlined" aria-hidden="true">groups</span>
+              <span>Empleados</span>
             </a>
 
-            <a
-              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
-              href="#"
-            >
-              <span className="material-symbols-outlined">work</span>
-              Reclutamiento
+            <a href="#" className="nav-item">
+              <span className="material-symbols-outlined" aria-hidden="true">work</span>
+              <span>Reclutamiento</span>
             </a>
 
-            <a
-              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
-              href="#"
-            >
-              <span className="material-symbols-outlined">grade</span>
-              Evaluaciones
+            <a href="#" className="nav-item">
+              <span className="material-symbols-outlined" aria-hidden="true">grade</span>
+              <span>Evaluaciones</span>
             </a>
 
-            <a
-              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
-              href="#"
-            >
-              <span className="material-symbols-outlined">event_available</span>
-              Asistencias
+            <a href="#" className="nav-item">
+              <span className="material-symbols-outlined" aria-hidden="true">event_available</span>
+              <span>Asistencias</span>
             </a>
 
-            <a
-              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
-              href="#"
-            >
-              <span className="material-symbols-outlined">request_quote</span>
-              Contratos
+            <a href="#" className="nav-item">
+              <span className="material-symbols-outlined" aria-hidden="true">request_quote</span>
+              <span>Contratos</span>
             </a>
           </nav>
 
-          {/* Imagen del usuario */}
-          <div className="px-6 pb-6">
+          {/* Usuario */}
+          <div className="px-6 pb-6 mt-auto">
             <div
-              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border-2 border-primary"
+              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border-2"
               style={{
+                borderColor: 'var(--primary-500)',
                 backgroundImage:
                   'url("https://lh3.googleusercontent.com/aida-public/AB6AXuADgd3RJCWxoZnZvaEv-rPel5QT5n6yjUhwNrkRWOxO8SZJdtRDYI_7Ta9GzvlB9sOukLSSms7TbpIma8-l43EnWb1LeOsZf8_epesTFdja6J1LLCC_zv0Vwy2FxYC6_1abdbwxxgh3nLZtzQabfb1dsL8Cb1maN0p_EUrozQf3AElqmxp-OTcHl9h_-G5q9lWBfFsqrwCcN28hMti05rifEhfQ1fyxp6H_yBQZKEAWBkSKeEBpoOV8vcBX1bC_1CZzxnFiaeY-Qkg")',
               }}
+              role="img"
+              aria-label="Foto de usuario"
             />
           </div>
         </aside>
 
         {/* Contenido principal */}
         <main className="flex-1 flex flex-col">
-          {/* Encabezado */}
-          <header className="flex items-center justify-between h-16 px-8 border-b border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark sticky top-0 z-10 flex-shrink-0">
-            <h2 className="text-2xl font-bold">Panel de Control</h2>
-            <div className="flex items-center gap-4">
-              <button className="flex items-center justify-center h-10 px-4 rounded-DEFAULT bg-primary text-white text-sm font-semibold gap-2">
-                <span className="material-symbols-outlined">add</span>
-                <span>Añadir Empleado</span>
+          {/* Top bar */}
+          <header className="top-bar">
+            <div className="breadcrumb text-sm text-text-dark">
+              <span className="sr-only">Estas en:</span> Panel de Control
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="btn btn-primary btn-sm" type="button">
+                <span className="material-symbols-outlined" aria-hidden="true">add</span>
+                Añadir empleado
               </button>
             </div>
           </header>
 
-          {/* Cuerpo principal */}
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
-              <h3 className="text-4xl font-bold text-foreground-light dark:text-foreground-dark">
-                Bienvenido de nuevo, Administrador
-              </h3>
-              <p className="mt-2 text-lg text-text-light dark:text-text-dark">
-                Aquí tienes un resumen rápido de lo que está sucediendo hoy.
-              </p>
+          {/* Cuerpo */}
+          <section className="flex-1 p-8">
+            <div className="card">
+              <h2 className="text-2xl font-bold mb-2">Bienvenido de nuevo, Administrador</h2>
+              <p className="text-text-dark">Aquí tienes un resumen rápido de lo que está sucediendo hoy.</p>
             </div>
-          </div>
+
+            {/* Ejemplo de grid responsive del PDF */}
+            <div className="grid gap-4 mt-6"
+                 style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+              <div className="card skeleton" style={{ height: '120px' }} aria-busy="true" />
+              <div className="card skeleton" style={{ height: '120px' }} aria-busy="true" />
+              <div className="card skeleton" style={{ height: '120px' }} aria-busy="true" />
+            </div>
+          </section>
         </main>
       </div>
     </div>

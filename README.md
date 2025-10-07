@@ -78,21 +78,39 @@ El resultado se encontrará en la carpeta:
 La organización del código sigue un patrón modular por features, con separación de componentes reutilizables, páginas y servicios:
 
 ```bash
-📁 src/
-├── 📁 assets/        # Imágenes, íconos y recursos estáticos
-├── 📁 components/    # Componentes reutilizables (botones, inputs, modales, etc.)
-├── 📁 features/      # Módulos específicos del dominio (empleados, asistencias, etc.)
-├── 📁 hooks/         # Custom hooks para lógica reutilizable
-├── 📁 layouts/       # Layouts generales de la aplicación
-├── 📁 pages/         # Páginas del sistema (con React Router)
-├── 📁 services/      # Comunicación con APIs externas
-├── 📁 styles/        # Estilos globales y configuración de Tailwind
-├── 📁 utils/         # Funciones utilitarias y helpers
-├── 📄 App.jsx        # Configuración principal de la app
-├── 📄 main.jsx       # Punto de entrada de la aplicación
+📁 react-rrhh-plus/
+├── 📁 docs/               # Documentación del proyecto (lineamientos, guías, etc.)
+│   └── Lineamientos_UI_UX_RHPlus.docx
+├── 📁 public/
+├── 📁 src/
+│   ├── 📁 assets/         # Imágenes, íconos y recursos estáticos
+│   ├── 📁 components/     # Componentes reutilizables (botones, inputs, modales, etc.)
+│   ├── 📁 features/       # Módulos específicos del dominio (empleados, asistencias, etc.)
+│   ├── 📁 hooks/          # Custom hooks para lógica reutilizable
+│   ├── 📁 layouts/        # Layouts generales de la aplicación
+│   ├── 📁 pages/          # Páginas del sistema (con React Router)
+│   ├── 📁 services/       # Comunicación con APIs externas
+│   ├── 📁 styles/         # Estilos globales y configuración de Tailwind
+│   ├── 📁 utils/          # Funciones utilitarias y helpers
+│   ├── 📄 App.jsx         # Configuración principal de la app
+│   └── 📄 main.jsx        # Punto de entrada de la aplicación
+├── 📄 package.json
+├── 📄 vite.config.js
+├── 📄 README.md
+└── 📄 .gitignore
 ```
 
 --- 
+
+## Lineamientos de Diseño (UI/UX)
+
+El proyecto **RRHH Plus Frontend** sigue una **guía de lineamientos UI/UX** que define los principios de diseño, componentes base, colores, tipografía y patrones de interacción.  
+Estos lineamientos aseguran la **consistencia visual y de experiencia de usuario** en todas las interfaces del sistema.
+
+📄 El documento completo se encuentra en:  
+[`/docs/Lineamientos_UI_UX_RHPlus.docx`](./docs/Lineamientos_UI_UX_RHPlus.docx)
+
+---
 
 ## Tecnologías principales
 

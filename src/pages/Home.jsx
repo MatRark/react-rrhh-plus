@@ -3,25 +3,17 @@ export default function Home() {
   return (
     <div className="font-display bg-background-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark">
       <div className="flex h-screen">
-        {/* Aside */}
+        {/* Barra lateral */}
         <aside className="w-64 bg-card-light dark:bg-card-dark border-r border-border-light dark:border-border-dark flex flex-col">
+          {/* Encabezado del logo */}
           <div className="flex items-center gap-3 px-6 h-16 border-b border-border-light dark:border-border-dark">
-            <div className="text-primary">
-              <svg
-                className="w-8 h-8"
-                fill="none"
-                viewBox="0 0 48 48"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M6 6H42L36 24L42 42H6L12 24L6 6Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold">RHPlus</h1>
+            <span className="material-symbols-outlined text-4xl text-blue-600">
+              apps
+            </span>
+            <h1 className="text-xl font-bold">RRHH-PLUS</h1>
           </div>
 
+          {/* Navegación */}
           <nav className="flex-1 px-4 py-6 space-y-2">
             <a
               className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
@@ -38,27 +30,41 @@ export default function Home() {
               <span className="material-symbols-outlined">groups</span>
               Empleados
             </a>
-            <a className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark" href="#">
+
+            <a
+              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
+              href="#"
+            >
               <span className="material-symbols-outlined">work</span>
               Reclutamiento
             </a>
 
-            <a className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark" href="#">
+            <a
+              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
+              href="#"
+            >
               <span className="material-symbols-outlined">grade</span>
               Evaluaciones
             </a>
 
-            <a className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark" href="#">
+            <a
+              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
+              href="#"
+            >
               <span className="material-symbols-outlined">event_available</span>
               Asistencias
             </a>
 
-            <a className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark" href="#">
+            <a
+              className="flex items-center gap-3 px-4 py-2 rounded-DEFAULT hover:bg-primary/10 hover:text-primary transition-colors duration-200 text-text-light dark:text-text-dark"
+              href="#"
+            >
               <span className="material-symbols-outlined">request_quote</span>
               Contratos
             </a>
           </nav>
 
+          {/* Imagen del usuario */}
           <div className="px-6 pb-6">
             <div
               className="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border-2 border-primary"
@@ -70,8 +76,9 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* Main */}
+        {/* Contenido principal */}
         <main className="flex-1 flex flex-col">
+          {/* Encabezado */}
           <header className="flex items-center justify-between h-16 px-8 border-b border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark sticky top-0 z-10 flex-shrink-0">
             <h2 className="text-2xl font-bold">Panel de Control</h2>
             <div className="flex items-center gap-4">
@@ -82,6 +89,7 @@ export default function Home() {
             </div>
           </header>
 
+          {/* Cuerpo principal */}
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center">
               <h3 className="text-4xl font-bold text-foreground-light dark:text-foreground-dark">

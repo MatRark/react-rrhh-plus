@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 
+
 // páginas
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
@@ -14,8 +15,8 @@ import Reclutamiento from './pages/Reclutamiento.jsx'
 import NotFound from './pages/NotFound.jsx'
 
 const router = createBrowserRouter([
-  { path: '/', element: <Home /> },
-  { path: '/login', element: <Login /> },
+  { path: '/', element: <Login /> },        // 👈 Página inicial ahora es Login
+  { path: '/home', element: <Home /> },     // 👈 Panel de control
   { path: '/empleados', element: <Empleados /> },
   { path: '/contratos', element: <Contratos /> },
   { path: '/asistencias', element: <Asistencias /> },

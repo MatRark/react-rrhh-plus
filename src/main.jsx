@@ -15,7 +15,7 @@ import Reclutamiento from './pages/Reclutamiento.jsx'
 import NotFound from './pages/NotFound.jsx'
 
 const router = createBrowserRouter([
-  { path: '/', element: <Home /> },        // 👈 Página inicial ahora es Login
+  { path: '/', element: <Login /> },        // 👈 Página inicial ahora es Login
   { path: '/home', element: <Home /> },     // 👈 Panel de control
   { path: '/empleados', element: <Empleados /> },
   { path: '/contratos', element: <Contratos /> },

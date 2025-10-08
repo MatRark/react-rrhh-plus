@@ -33,7 +33,7 @@ export default function Login() {
     e.preventDefault();
     
     if (email === '' || password === ''){
-      setMessage('No dejes ningún campo vacío');
+      setMessage('Por favor, completa todos los campos');
       setMessageType('error');
       return;
     }
@@ -43,7 +43,7 @@ export default function Login() {
       setMessage('Bienvenido');
       setMessageType('success');
     } else {
-      setMessage('Credenciales incorrectas');
+      setMessage('El usuario o la contraseña son incorrectos');
       setMessageType('error');
     }
   }
@@ -107,7 +107,7 @@ export default function Login() {
           )}
           
           <div className="form-group">
-            <label className="form-label">Email</label>
+            <label className="form-label">Correo Electrónico</label>
             <input 
               type="text"
               placeholder="Ingresa tu correo electrónico"

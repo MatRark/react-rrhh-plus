@@ -131,11 +131,8 @@ html, body {
   text-decoration:none;
   margin: var(--space-1) var(--space-2);
 }
-.nav-item:hover {
-  background: var(--primary-50);
-  color: var(--primary-700);
-}
-
+.nav-item:hover { background: var(--gray-50); }
+.nav-item.active { background: var(--primary-50); color: var(--primary-700); font-weight: 600; }
 
 /* Card */
 .card {

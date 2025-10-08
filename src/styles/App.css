@@ -19,8 +19,8 @@
   --gray-50:  #f9fafb;   /* fondo app */
   --gray-100: #f3f4f6;   /* fondo cards */
   --gray-200: #e5e7eb;   /* bordes suaves */
-  --gray-400: #9ca3af;   /* texto secundario */
-  --gray-700: #374151;   /* texto principal */
+  --gray-900: #43484c;   /* texto secundario */
+  --gray-700: #000000;   /* texto principal */
   --gray-900: #111827;   /* texto importante */
 
   /* Tipografía (escala) */

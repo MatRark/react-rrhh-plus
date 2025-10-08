@@ -68,7 +68,7 @@ export default function Home() {
           {/* Top bar */}
           <header className="top-bar">
             <div className="breadcrumb text-sm text-text-dark">
-              <span className="sr-only">Estas en:</span> Panel de Control
+              <h2 className="text-3xl font-bold">Panel de Control</h2>
             </div>
 
             <div className="flex items-center gap-3">
@@ -82,8 +82,10 @@ export default function Home() {
           {/* Cuerpo */}
           <section className="flex-1 p-8">
             <div className="card">
-              <h2 className="text-2xl font-bold mb-2">Bienvenido de nuevo, Administrador</h2>
-              <p className="text-text-dark">Aquí tienes un resumen rápido de lo que está sucediendo hoy.</p>
+              <h2 className="text-4xl font-bold mb-4">Bienvenido de nuevo, Administrador</h2>
+              <p className="text-xl text-text-dark">
+                Aquí tienes un resumen rápido de lo que está sucediendo hoy.
+              </p>
             </div>
 
             {/* Ejemplo de grid responsive del PDF */}

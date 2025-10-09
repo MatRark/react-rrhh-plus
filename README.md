@@ -103,6 +103,7 @@ La organización del código sigue un patrón modular por features, con separaci
 --- 
 
 ## Lineamientos de Diseño (UI/UX)
+## Prueba del WorkFlow
 
 El proyecto **RRHH Plus Frontend** sigue una **guía de lineamientos UI/UX** que define los principios de diseño, componentes base, colores, tipografía y patrones de interacción.  
 Estos lineamientos aseguran la **consistencia visual y de experiencia de usuario** en todas las interfaces del sistema.

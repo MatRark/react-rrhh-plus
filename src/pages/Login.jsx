@@ -33,7 +33,7 @@ export default function Login() {
     e.preventDefault();
     
     if (email === '' || password === ''){
-      setMessage('Por favor, completa todos los campos');
+      setMessage('Completa todos los campos');
       setMessageType('error');
       return;
     }

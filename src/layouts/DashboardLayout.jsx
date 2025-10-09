@@ -1,7 +1,7 @@
 // src/layouts/DashboardLayout.jsx
 import Sidebar from "../components/Sidebar";
 import { Outlet } from "react-router-dom";
-import "../styles/app.css"; // si prefieres importarlo aquí
+import "../styles/App.css"; // si prefieres importarlo aquí
 
 export default function DashboardLayout() {
   return (

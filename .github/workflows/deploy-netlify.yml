@@ -3,29 +3,29 @@ name: Deploy Frontend to Netlify (develop)
 on:
   push:
     branches: [develop]
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⬇️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: '20'
+          cache: 'npm'
 
-      - name: 📦 Install deps
+      - name: Install dependencies
         run: npm ci
 
-      - name: 🏗️ Build
+      - name: Build
         run: npm run build
 
-      - name: 🚀 Deploy to Netlify (prod)
+      - name: Deploy to Netlify (prod)
         uses: nwtgck/actions-netlify@v2
         with:
           publish-dir: ./dist
@@ -34,23 +34,27 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
 
-      # 🔥 Smoke test compatible con SPA: valida /login devuelve 200
-      - name: ✅ Smoke test (SPA: /login)
+      - name: Smoke test (SPA: /login)
         env:
           URL: https://rrhh-plus.netlify.app
         run: |
           echo "Checking $URL/login ..."
           for i in {1..12}; do
             STATUS=$(curl -s -o /tmp/page.html -w "%{http_code}" "$URL/login")
-            echo "Attempt $i → HTTP $STATUS"
+            echo "Attempt $i -> HTTP $STATUS"
             if [ "$STATUS" = "200" ]; then break; fi
             sleep 5
           done
+
           if [ "$STATUS" != "200" ]; then
-            echo "❌ /login no responde 200"; exit 1
+            echo "Not 200 on $URL/login"
+            exit 1
           fi
-          # En React el HTML es estático; valida marcadores del index
+
           if ! grep -qi 'id="root"' /tmp/page.html && ! grep -qi '<title>' /tmp/page.html; then
-            echo "❌ No se encontraron marcadores del index"; head -n 40 /tmp/page.html; exit 1
+            echo "Index markers not found"
+            head -n 40 /tmp/page.html
+            exit 1
           fi
-          echo "✅ Smoke OK: /login accesible y HTML base correcto"
+
+          echo "Smoke test OK"

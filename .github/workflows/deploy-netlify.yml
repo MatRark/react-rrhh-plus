@@ -1,0 +1,46 @@
+name: Deploy Frontend to Netlify (develop)
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build project
+        run: npm run build
+
+      - name: 🌐 Install Netlify CLI
+        run: npm i -g netlify-cli
+
+      - name: 🚀 Deploy to Netlify (production)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: netlify deploy --dir=dist --prod --site="$NETLIFY_SITE_ID"
+
+      - name: ✅ Smoke test (check login visible)
+        run: |
+          URL="https://rrhh-plus.netlify.app"
+          STATUS=$(curl -s -o /tmp/page.html -w "%{http_code}" "$URL")
+          if [ "$STATUS" != "200" ]; then
+            echo "Bad status: $STATUS"; exit 1; fi
+          if ! (grep -qi "login" /tmp/page.html || grep -qi "iniciar sesi" /tmp/page.html); then
+            echo "Login text not found"; exit 1; fi
+          echo "Smoke test OK"

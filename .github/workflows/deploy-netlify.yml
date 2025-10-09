@@ -3,13 +3,12 @@ name: Deploy Frontend to Netlify (develop)
 on:
   push:
     branches: [develop]
-
-permissions:
-  contents: read
+  workflow_dispatch: {}
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: ⬇️ Checkout
         uses: actions/checkout@v4
@@ -20,27 +19,38 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install deps
         run: npm ci
 
-      - name: 🏗️ Build project
+      - name: 🏗️ Build
         run: npm run build
 
-      - name: 🌐 Install Netlify CLI
-        run: npm i -g netlify-cli
-
-      - name: 🚀 Deploy to Netlify (production)
+      - name: 🚀 Deploy to Netlify (prod)
+        uses: nwtgck/actions-netlify@v2
+        with:
+          publish-dir: ./dist
+          production-deploy: true
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        run: netlify deploy --dir=dist --prod --site="$NETLIFY_SITE_ID"
 
-      - name: ✅ Smoke test (check login visible)
+      # 🔥 Smoke test compatible con SPA: valida /login devuelve 200
+      - name: ✅ Smoke test (SPA: /login)
+        env:
+          URL: https://rrhh-plus.netlify.app
         run: |
-          URL="https://rrhh-plus.netlify.app"
-          STATUS=$(curl -s -o /tmp/page.html -w "%{http_code}" "$URL")
+          echo "Checking $URL/login ..."
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /tmp/page.html -w "%{http_code}" "$URL/login")
+            echo "Attempt $i → HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then break; fi
+            sleep 5
+          done
           if [ "$STATUS" != "200" ]; then
-            echo "Bad status: $STATUS"; exit 1; fi
-          if ! (grep -qi "login" /tmp/page.html || grep -qi "iniciar sesi" /tmp/page.html); then
-            echo "Login text not found"; exit 1; fi
-          echo "Smoke test OK"
+            echo "❌ /login no responde 200"; exit 1
+          fi
+          # En React el HTML es estático; valida marcadores del index
+          if ! grep -qi 'id="root"' /tmp/page.html && ! grep -qi '<title>' /tmp/page.html; then
+            echo "❌ No se encontraron marcadores del index"; head -n 40 /tmp/page.html; exit 1
+          fi
+          echo "✅ Smoke OK: /login accesible y HTML base correcto"

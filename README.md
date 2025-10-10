@@ -1,4 +1,4 @@
-# React RRHH Plus  
+# React RRHH Plus  by PLUS-GANG
 
 Frontend del sistema **RRHH Plus**, un sistema web dirigido a las áreas de Recursos Humanos con el objetivo de **automatizar tareas** como:  
 - Gestión de empleados  

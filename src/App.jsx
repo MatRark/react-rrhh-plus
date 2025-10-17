@@ -43,19 +43,19 @@ export default function App() {
               <Route path="/empleados" element={<Empleados />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador", "Reclutador"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "Reclutador"]} />}>
               <Route path="/reclutamiento" element={<Reclutamiento />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador", "Evaluador"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "Evaluador"]} />}>
               <Route path="/evaluaciones" element={<Evaluaciones />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador", "Operador de Asistencia"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "Operador de Asistencia"]} />}>
               <Route path="/asistencias" element={<Asistencias />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin"]} />}>
               <Route path="/contratos" element={<Contratos />} />
             </Route>
           </Route>

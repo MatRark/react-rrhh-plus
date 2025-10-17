@@ -1,6 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./layouts/DashboardLayout";
 
+// Protecciones
+import PrivateRoute from "./routes/PrivateRoute";
+import RoleRoute from "./routes/RoleRoute";
+
 // Páginas
 import Home from "./pages/Home";
 import Empleados from "./pages/Empleados";
@@ -10,23 +14,51 @@ import Asistencias from "./pages/Asistencias";
 import Contratos from "./pages/Contratos";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import { isAuthenticated } from "./services/authService";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 🔹 Rutas fuera del layout (sin sidebar) */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+       {/* Ruta raíz dinámica */}
+        <Route
+          path="/"
+          element={
+            isAuthenticated()
+              ? <Navigate to="/home" replace />
+              : <Navigate to="/login" replace />
+          }
+        />
 
-        {/* 🔹 Rutas dentro del layout (con sidebar) */}
-        <Route element={<DashboardLayout />}>
-          <Route path="/home" element={<Home />} />
-          <Route path="/empleados" element={<Empleados />} />
-          <Route path="/reclutamiento" element={<Reclutamiento />} />
-          <Route path="/evaluaciones" element={<Evaluaciones />} />
-          <Route path="/asistencias" element={<Asistencias />} />
-          <Route path="/contratos" element={<Contratos />} />
+        {/* Rutas públicas */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Rutas privadas (requieren login) */}
+        <Route element={<PrivateRoute />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/home" element={<Home />} />
+
+            {/* Rutas con control de roles */}
+            <Route element={<RoleRoute allowedRoles={["admin", "empleado","gestor_empleados"]} />}>
+              <Route path="/empleados" element={<Empleados />} />
+            </Route>
+
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "reclutador"]} />}>
+              <Route path="/reclutamiento" element={<Reclutamiento />} />
+            </Route>
+
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "evaluador","reclutador", "empleado"]} />}>
+              <Route path="/evaluaciones" element={<Evaluaciones />} />
+            </Route>
+
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "operador_asistencia","empleado","gestor_empleados"]} />}>
+              <Route path="/asistencias" element={<Asistencias />} />
+            </Route>
+
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "empleado","gestor_empleados"]} />}>
+              <Route path="/contratos" element={<Contratos />} />
+            </Route>
+          </Route>
         </Route>
 
         {/* 404 */}

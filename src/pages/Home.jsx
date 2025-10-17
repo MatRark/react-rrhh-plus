@@ -1,4 +1,7 @@
+import { getUserInfo } from "../services/authService";
+
 export default function Home() {
+  const user = getUserInfo();
   return (
     <>
       <header className="top-bar">
@@ -9,8 +12,9 @@ export default function Home() {
 
       <section className="mt-6">
         <div className="card">
-          <h2 className="text-4xl font-bold mb-4">Bienvenido de nuevo, Administrador</h2>
-          <p className="text-xl text-text-dark">
+      <h2 className="text-4xl font-bold mb-4">
+        Bienvenido de nuevo, {user.email || "Usuario"} 🤵
+      </h2>          <p className="text-xl text-text-dark">
             Aquí tienes un resumen rápido de lo que está sucediendo hoy.
           </p>
         </div>

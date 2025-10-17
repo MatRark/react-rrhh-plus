@@ -39,23 +39,23 @@ export default function App() {
             <Route path="/home" element={<Home />} />
 
             {/* Rutas con control de roles */}
-            <Route element={<RoleRoute allowedRoles={["admin", "Gestor de Empleados"]} />}>
+            <Route element={<RoleRoute allowedRoles={["admin", "empleado","gestor_empleados"]} />}>
               <Route path="/empleados" element={<Empleados />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "Reclutador"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "reclutador"]} />}>
               <Route path="/reclutamiento" element={<Reclutamiento />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "Evaluador"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "evaluador","reclutador", "empleado"]} />}>
               <Route path="/evaluaciones" element={<Evaluaciones />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "Operador de Asistencia"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "operador_asistencia","empleado","gestor_empleados"]} />}>
               <Route path="/asistencias" element={<Asistencias />} />
             </Route>
 
-            <Route element={<RoleRoute allowedRoles={["Administrador","admin"]} />}>
+            <Route element={<RoleRoute allowedRoles={["Administrador","admin", "empleado","gestor_empleados"]} />}>
               <Route path="/contratos" element={<Contratos />} />
             </Route>
           </Route>

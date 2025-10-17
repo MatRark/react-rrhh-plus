@@ -13,7 +13,7 @@ export default function Home() {
       <section className="mt-6">
         <div className="card">
       <h2 className="text-4xl font-bold mb-4">
-        Bienvenido de nuevo, {user.email || "Usuario"} ✅
+        Bienvenido de nuevo, {user.email || "Usuario"} 🤵
       </h2>          <p className="text-xl text-text-dark">
             Aquí tienes un resumen rápido de lo que está sucediendo hoy.
           </p>

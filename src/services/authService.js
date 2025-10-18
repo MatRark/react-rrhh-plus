@@ -1,4 +1,4 @@
-const API_URL = "http://rhplus.somee.com/auth/login";
+const API_URL = "https://rhplus.somee.com/auth/login";
 
 export async function loginUser(credentials) {
   try {

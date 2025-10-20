@@ -14,7 +14,7 @@ export default function Sidebar() {
   // Mapa de visibilidad de módulos según roles
   const modules = [
     { to: "/home", icon: "dashboard", label: "Panel de Control", roles: ["*"] },
-    { to: "/empleados", icon: "groups", label: "Empleados", roles: ["admin", "gestor_empleados", "empleado"] },
+    { to: "/empleados", icon: "groups", label: "Empleados", roles: ["admin", "gestor_empleados"] },
     { to: "/reclutamiento", icon: "work", label: "Reclutamiento", roles: ["admin", "reclutador"] },
     { to: "/evaluaciones", icon: "grade", label: "Evaluaciones", roles: ["admin", "evaluador", "reclutador", "empleado"] },
     { to: "/asistencias", icon: "event_available", label: "Asistencias", roles: ["admin", "gestor_empleados", "operador_asistencia", "empleado"] },

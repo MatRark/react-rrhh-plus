@@ -10,6 +10,39 @@ const API = {
 };
 const getToken = () => localStorage.getItem("token") || "";
 const authHeaders = () => (getToken() ? { Authorization: `Bearer ${getToken()}` } : {});
+const acceptJSON = { Accept: "application/json" };
+
+/* Helpers de red robustos */
+const okOrThrow = async (res) => {
+  if (res.ok) return res;
+  const txt = await res.text().catch(() => "");
+  throw new Error(txt || `HTTP ${res.status}`);
+};
+const readJSONSafe = async (res) => {
+  if (res.status === 204) return null;
+  const ct = res.headers.get("content-type") || "";
+  const text = await res.text().catch(() => "");
+  if (!text) return null;
+  try {
+    // si no mandan content-type correcto, igual intento parsear
+    return ct.includes("application/json") ? JSON.parse(text) : JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+const mapRow = (it) => ({
+  id: String(it.id),
+  name: it.nombre ?? "",
+  email: it.email ?? it.correo ?? "",
+  role: it.puesto ?? it.puestoNombre ?? "",
+  dept: it.area ?? it.areaNombre ?? "",
+  status: it.estatus ?? it.estatusNombre ?? "",
+  shift: it.turno ?? it.turnoNombre ?? "",
+  areaId: it.areaId ?? null,
+  puestoId: it.puestoId ?? null,
+  turnoId: it.turnoId ?? null,
+  estatusId: it.estatusId ?? null,
+});
 
 /* =========================================
    UI: Badges, Inputs, Dialog, Toast
@@ -68,27 +101,20 @@ function LabeledSelect({ label, icon, children, required, className = "", ...pro
   );
 }
 
-/* Dialog de Confirmación en Portal (no se congela) */
+/* Dialog de Confirmación Bonito (con portal + ESC + overlay) */
 function ConfirmDialog({ open, title, message, confirmText = "Eliminar", cancelText = "Cancelar", tone = "danger", onConfirm, onCancel }) {
-  // Si no está abierto, no renderizamos nada (se desmonta)
   if (!open) return null;
-
-  // Cerrar con ESC
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onCancel?.();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onCancel]);
-
   return createPortal(
     <div className="fixed inset-0 z-[9999]">
-      {/* Overlay */}
       <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
-
-      {/* Caja */}
       <div className="absolute inset-0 grid place-items-center">
         <div
-          className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-slate-200 animate-[fadeIn_120ms_ease-out]"
+          className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-slate-200"
           onClick={(e) => e.stopPropagation()}
           role="alertdialog"
           aria-modal="true"
@@ -342,7 +368,7 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
                   <LabeledInput label="Fecha de ingreso" icon="event" type="date" autoComplete="off" value={detail.fechaIngreso || ""} onChange={update("fechaIngreso")} />
 
                   {/* IDs numéricos para PUT */}
-                  <LabeledInput label="Área ID"     required icon="apartment"        type="number" min="1" step="1" value={detail.areaId ?? ""}    onChange={update("areaId")} />
+                  <LabeledInput label="Área ID"     required icon="apartment"         type="number" min="1" step="1" value={detail.areaId ?? ""}    onChange={update("areaId")} />
                   <LabeledInput label="Puesto ID"   required icon="workspace_premium" type="number" min="1" step="1" value={detail.puestoId ?? ""}  onChange={update("puestoId")} />
                   <LabeledInput label="Turno ID"    required icon="schedule"          type="number" min="1" step="1" value={detail.turnoId ?? ""}   onChange={update("turnoId")} />
                   <LabeledInput label="Estatus ID"  required icon="verified_user"     type="number" min="1" step="1" value={detail.estatusId ?? ""} onChange={update("estatusId")} />
@@ -417,6 +443,37 @@ export default function EmployeeTable() {
   const [confirmDel, setConfirmDel] = useState({ open: false, id: null, name: "" });
   const [toast, setToast] = useState({ open: false, text: "", kind: "success" });
 
+  /* util: recargar lista */
+  const reloadList = async () => {
+    const res = await fetch(API.base, { headers: { ...acceptJSON, ...authHeaders() } });
+    await okOrThrow(res);
+    const json = await readJSONSafe(res);
+    const mapped = (Array.isArray(json) ? json : []).map(mapRow);
+    setData(mapped);
+  };
+
+  /* util: refrescar un registro (detalle) y sincronizar tabla */
+  const refreshRow = async (id) => {
+    const res = await fetch(API.detail(id), { headers: { ...acceptJSON, ...authHeaders() } });
+    await okOrThrow(res);
+    const it = await readJSONSafe(res);
+    if (!it) return;
+    const row = mapRow(it);
+    setData((prev) => prev.map((x) => (x.id === row.id ? row : x)));
+    setDetail({
+      id: it.id,
+      nombre: it.nombre ?? "",
+      email: it.email ?? it.correo ?? "",
+      telefono: it.telefono ?? "",
+      fechaIngreso: it.fechaIngreso ?? "",
+      area: row.dept,
+      puesto: row.role,
+      turno: row.shift,
+      estatus: row.status,
+      areaId: row.areaId, puestoId: row.puestoId, turnoId: row.turnoId, estatusId: row.estatusId,
+    });
+  };
+
   /* Cargar lista */
   useEffect(() => {
     let alive = true;
@@ -425,24 +482,12 @@ export default function EmployeeTable() {
       setLoading(true); setError("");
       try {
         const res = await fetch(API.base, {
-          headers: { Accept: "application/json", ...authHeaders() },
+          headers: { ...acceptJSON, ...authHeaders() },
           signal: ac.signal,
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const mapped = (Array.isArray(json) ? json : []).map((it) => ({
-          id: String(it.id),
-          name: it.nombre ?? "",
-          email: it.email ?? it.correo ?? "",
-          role: it.puesto ?? it.puestoNombre ?? "",
-          dept: it.area ?? it.areaNombre ?? "",
-          status: it.estatus ?? it.estatusNombre ?? "",
-          shift: it.turno ?? it.turnoNombre ?? "",
-          areaId: it.areaId ?? null,
-          puestoId: it.puestoId ?? null,
-          turnoId: it.turnoId ?? null,
-          estatusId: it.estatusId ?? null,
-        }));
+        await okOrThrow(res);
+        const json = await readJSONSafe(res);
+        const mapped = (Array.isArray(json) ? json : []).map(mapRow);
         if (alive) setData(mapped);
       } catch {
         if (alive) setError("No se pudo cargar la lista de empleados.");
@@ -485,12 +530,12 @@ export default function EmployeeTable() {
     (async () => {
       try {
         const res = await fetch(API.detail(selectedId), {
-          headers: { Accept: "application/json", ...authHeaders() },
+          headers: { ...acceptJSON, ...authHeaders() },
           signal: ac.signal,
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const it = await res.json();
-        if (!alive) return;
+        await okOrThrow(res);
+        const it = await readJSONSafe(res);
+        if (!alive || !it) return;
         setDetail((prev) => ({
           ...prev,
           id: it.id,
@@ -536,48 +581,40 @@ export default function EmployeeTable() {
 
     const res = await fetch(`${API.base}/${d.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...acceptJSON, ...authHeaders() },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(txt || `Error al guardar (HTTP ${res.status})`);
+    await okOrThrow(res);
+    const updated = await readJSONSafe(res);
+
+    if (updated?.id) {
+      // actualizar con lo que venga
+      setData((prev) =>
+        prev.map((x) =>
+          x.id === String(updated.id)
+            ? {
+                ...x,
+                ...mapRow(updated),
+                areaId: payload.areaId, puestoId: payload.puestoId, turnoId: payload.turnoId, estatusId: payload.estatusId,
+              }
+            : x
+        )
+      );
+      setDetail((prev) => ({
+        ...prev,
+        nombre: updated.nombre ?? prev?.nombre,
+        email: updated.email ?? updated.correo ?? prev?.email,
+        telefono: updated.telefono ?? prev?.telefono,
+        area: updated.area ?? updated.areaNombre ?? prev?.area,
+        puesto: updated.puesto ?? updated.puestoNombre ?? prev?.puesto,
+        turno: updated.turno ?? updated.turnoNombre ?? prev?.turno,
+        estatus: updated.estatus ?? updated.estatusNombre ?? prev?.estatus,
+        areaId: payload.areaId, puestoId: payload.puestoId, turnoId: payload.turnoId, estatusId: payload.estatusId,
+      }));
+    } else {
+      // sin cuerpo => refrescamos desde {id}/detalle
+      await refreshRow(d.id);
     }
-    const updated = await res.json();
-
-    // Tabla
-    setData((prev) =>
-      prev.map((x) =>
-        x.id === String(updated.id)
-          ? {
-              ...x,
-              name: updated.nombre ?? "",
-              email: updated.email ?? updated.correo ?? "",
-              role: updated.puesto ?? updated.puestoNombre ?? x.role,
-              dept: updated.area ?? updated.areaNombre ?? x.dept,
-              status: updated.estatus ?? updated.estatusNombre ?? x.status,
-              shift: updated.turno ?? updated.turnoNombre ?? x.shift,
-              areaId: payload.areaId, puestoId: payload.puestoId, turnoId: payload.turnoId, estatusId: payload.estatusId,
-            }
-          : x
-      )
-    );
-
-    // Detalle
-    setDetail((prev) => ({
-      ...prev,
-      nombre: updated.nombre ?? prev?.nombre,
-      email: updated.email ?? updated.correo ?? prev?.email,
-      telefono: updated.telefono ?? prev?.telefono,
-      area: updated.area ?? updated.areaNombre ?? prev?.area,
-      puesto: updated.puesto ?? updated.puestoNombre ?? prev?.puesto,
-      turno: updated.turno ?? updated.turnoNombre ?? prev?.turno,
-      estatus: updated.estatus ?? updated.estatusNombre ?? prev?.estatus,
-      areaId: payload.areaId,
-      puestoId: payload.puestoId,
-      turnoId: payload.turnoId,
-      estatusId: payload.estatusId,
-    }));
   };
 
   /* POST empleado (IDs + password + domicilio + contacto) */
@@ -599,35 +636,21 @@ export default function EmployeeTable() {
 
     const res = await fetch(API.base, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...acceptJSON, ...authHeaders() },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(txt || `Error al crear (HTTP ${res.status})`);
-    }
-    const created = await res.json();
+    await okOrThrow(res);
+    const created = await readJSONSafe(res);
 
-    // Inserta en tabla (sin abrir detalle)
-    setData((prev) => [
-      {
-        id: String(created.id),
-        name: created.nombre ?? "",
-        email: created.email ?? created.correo ?? "",
-        role: created.puesto ?? created.puestoNombre ?? "",
-        dept: created.area ?? created.areaNombre ?? "",
-        status: created.estatus ?? created.estatusNombre ?? "",
-        shift: created.turno ?? created.turnoNombre ?? "",
-        areaId: created.areaId ?? null,
-        puestoId: created.puestoId ?? null,
-        turnoId: created.turnoId ?? null,
-        estatusId: created.estatusId ?? null,
-      },
-      ...prev,
-    ]);
+    if (created?.id) {
+      setData((prev) => [ mapRow(created), ...prev ]);
+    } else {
+      // si no regresan el objeto, recargo lista
+      await reloadList();
+    }
     setPage(1);
-    setToast({ open: true, text: `Empleado "${created.nombre}" creado`, kind: "success" });
-    return created;
+    setToast({ open: true, text: `Empleado "${created?.nombre ?? ui.nombre}" creado`, kind: "success" });
+    return created ?? true;
   };
 
   /* Eliminar — abre diálogo y luego elimina */
@@ -639,12 +662,8 @@ export default function EmployeeTable() {
   const doDelete = async () => {
     const { id, name } = confirmDel;
     setConfirmDel((c) => ({ ...c, open: false })); // cerrar modal ya
-    const res = await fetch(`${API.base}/${id}`, { method: "DELETE", headers: { ...authHeaders() } });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      alert(txt || `No se pudo eliminar (HTTP ${res.status})`);
-      return;
-    }
+    const res = await fetch(`${API.base}/${id}`, { method: "DELETE", headers: { ...acceptJSON, ...authHeaders() } });
+    await okOrThrow(res);
     setData((prev) => prev.filter((x) => x.id !== id));
     if (selectedId === id) { setSelectedId(null); setDetailOpen(false); }
     setToast({ open: true, text: `Empleado "${name}" eliminado`, kind: "success" });

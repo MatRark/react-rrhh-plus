@@ -1,289 +1,820 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
-// Badge reutilizable
+/* =========================================
+   Config / Helpers
+========================================= */
+const API = {
+  base:   "https://rhplus.somee.com/api/Employees",              // GET list, POST, PUT {id}, DELETE {id}
+  detail: (id) => `https://rhplus.somee.com/api/Employees/${id}/detalle`,
+};
+const getToken = () => localStorage.getItem("token") || "";
+const authHeaders = () => (getToken() ? { Authorization: `Bearer ${getToken()}` } : {});
+
+/* =========================================
+   UI: Badges, Inputs, Dialog, Toast
+========================================= */
 const StatusBadge = ({ status }) => {
-  const isActive = String(status).toLowerCase() === "activo";
-  const base = "inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full";
+  const val = String(status ?? "").trim().toLowerCase();
+  const isActive = val === "activo" || val === "active" || val === "1" || val === "true";
   return (
-    <span className={`${base} ${isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>
+    <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"}`}>
       {isActive ? "Activo" : "Inactivo"}
     </span>
   );
 };
 
+function LabeledInput({ label, icon, required, className = "", ...props }) {
+  return (
+    <label className="block">
+      <span className="block text-sm font-medium text-slate-700">
+        {label}{required && <span className="text-red-500"> *</span>}
+      </span>
+      <div className="mt-1 relative">
+        {icon && (
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+        <input
+          {...props}
+          className={`w-full ${icon ? "pl-10" : "pl-3"} pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+        />
+      </div>
+    </label>
+  );
+}
+
+function LabeledSelect({ label, icon, children, required, className = "", ...props }) {
+  return (
+    <label className="block">
+      <span className="block text-sm font-medium text-slate-700">
+        {label}{required && <span className="text-red-500"> *</span>}
+      </span>
+      <div className="mt-1 relative">
+        {icon && (
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]" aria-hidden="true">
+            {icon}
+          </span>
+        )}
+        <select
+          {...props}
+          className={`w-full ${icon ? "pl-10" : "pl-3"} pr-8 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+        >
+          {children}
+        </select>
+      </div>
+    </label>
+  );
+}
+
+/* Dialog de Confirmación en Portal (no se congela) */
+function ConfirmDialog({ open, title, message, confirmText = "Eliminar", cancelText = "Cancelar", tone = "danger", onConfirm, onCancel }) {
+  // Si no está abierto, no renderizamos nada (se desmonta)
+  if (!open) return null;
+
+  // Cerrar con ESC
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onCancel?.();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999]">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+
+      {/* Caja */}
+      <div className="absolute inset-0 grid place-items-center">
+        <div
+          className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-slate-200 animate-[fadeIn_120ms_ease-out]"
+          onClick={(e) => e.stopPropagation()}
+          role="alertdialog"
+          aria-modal="true"
+        >
+          <div className={`px-5 py-4 rounded-t-xl ${tone === "danger" ? "bg-red-50 border-b border-red-100" : "bg-slate-50 border-b"}`}>
+            <div className="flex items-center gap-3">
+              <span className={`material-symbols-outlined ${tone === "danger" ? "text-red-600" : "text-slate-600"}`}>warning</span>
+              <h3 className={`text-base font-semibold ${tone === "danger" ? "text-red-700" : "text-slate-800"}`}>{title}</h3>
+            </div>
+          </div>
+          <div className="px-5 py-4 text-slate-700 text-sm">{message}</div>
+          <div className="px-5 py-4 flex items-center justify-end gap-2 border-t">
+            <button className="px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50" onClick={onCancel}>{cancelText}</button>
+            <button className={`px-3 py-2 rounded-lg text-white ${tone === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"}`} onClick={onConfirm}>
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* Toast sencillo bottom-right */
+function Toast({ open, kind = "success", text, onClose }) {
+  return (
+    <div className={`fixed bottom-6 right-6 z-[75] transition-all ${open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"}`}>
+      <div className={`flex items-start gap-3 rounded-xl shadow-lg border px-4 py-3 ${kind === "success" ? "bg-white border-green-200" : "bg-white border-slate-200"}`}>
+        <span className={`material-symbols-outlined ${kind === "success" ? "text-green-600" : "text-slate-600"}`}>{kind === "success" ? "check_circle" : "info"}</span>
+        <div className="text-sm text-slate-800">{text}</div>
+        <button className="ml-2 text-slate-400 hover:text-slate-600" onClick={onClose}>
+          <span className="material-symbols-outlined">close</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================
+   Sheet: Añadir Empleado (IDs + password)
+========================================= */
+function AddEmployeeSheet({ open, onClose, onCreate }) {
+  const [form, setForm] = useState({
+    nombre: "",
+    email: "",
+    telefono: "",
+    fechaIngreso: "",
+    areaId: "",
+    puestoId: "",
+    turnoId: "",
+    estatusId: "",
+    password: "",
+    rol: "empleado",
+    domicilio: { calle: "", numero: "", colonia: "", ciudad: "", estado: "", codigoPostal: "" },
+    contacto: { nombre: "", parentesco: "", telefono: "" }
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setErr(""); setBusy(false);
+      setForm({
+        nombre: "", email: "", telefono: "", fechaIngreso: "",
+        areaId: "", puestoId: "", turnoId: "", estatusId: "",
+        password: "", rol: "empleado",
+        domicilio: { calle:"", numero:"", colonia:"", ciudad:"", estado:"", codigoPostal:"" },
+        contacto: { nombre:"", parentesco:"", telefono:"" }
+      });
+    }
+  }, [open]);
+
+  const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const updateDom = (k) => (e) => setForm((f) => ({ ...f, domicilio: { ...f.domicilio, [k]: e.target.value }}));
+  const updateCtc = (k) => (e) => setForm((f) => ({ ...f, contacto: { ...f.contacto, [k]: e.target.value }}));
+
+  const requiredOk = [
+    "nombre","email","areaId","puestoId","turnoId","estatusId","password",
+    "domicilio.calle","domicilio.colonia","domicilio.ciudad","domicilio.estado","domicilio.codigoPostal",
+    "contacto.nombre","contacto.parentesco","contacto.telefono"
+  ].every((key) => {
+    const val = key.split(".").reduce((acc,k)=>acc?.[k], form);
+    return String(val ?? "").trim().length > 0;
+  });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!requiredOk || busy) return;
+    setErr(""); setBusy(true);
+    try {
+      await onCreate({
+        ...form,
+        areaId: Number(form.areaId),
+        puestoId: Number(form.puestoId),
+        turnoId: Number(form.turnoId),
+        estatusId: Number(form.estatusId),
+      });
+      onClose(); // cerrar al crear OK
+    } catch (ex) {
+      setErr(ex.message || "No se pudo crear el empleado.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
+      <div className={`absolute inset-0 bg-black/40 transition-opacity ${open ? "opacity-100" : "opacity-0"}`} onClick={onClose} />
+      <aside className={`absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl transition-transform ${open ? "translate-x-0" : "translate-x-full"}`} onClick={(e)=>e.stopPropagation()}>
+        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-3xl">person_add</span>
+            <div><h2 className="text-lg font-semibold">Nuevo empleado</h2><p className="text-white/80 text-sm">Completa la información</p></div>
+          </div>
+          <button className="p-2 rounded-lg bg-white/20 hover:bg-white/30" onClick={onClose}><span className="material-symbols-outlined">close</span></button>
+        </header>
+
+        <form onSubmit={submit} autoComplete="off" className="h-[calc(100%-7rem)] flex flex-col">
+          <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            {/* Identidad */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Identidad</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <LabeledInput label="Nombre" required icon="person" autoComplete="off" value={form.nombre} onChange={update("nombre")} />
+                <LabeledInput label="Correo" required icon="mail" type="email" autoComplete="off" value={form.email} onChange={update("email")} />
+                <LabeledInput label="Teléfono" icon="call" autoComplete="off" value={form.telefono} onChange={update("telefono")} />
+                <LabeledInput label="Fecha de ingreso" icon="event" type="date" autoComplete="off" value={form.fechaIngreso} onChange={update("fechaIngreso")} />
+              </div>
+            </section>
+
+            {/* IDs */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Asignación</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <LabeledInput label="Área ID" required icon="apartment" type="number" min="1" step="1" value={form.areaId} onChange={update("areaId")} />
+                <LabeledInput label="Puesto ID" required icon="workspace_premium" type="number" min="1" step="1" value={form.puestoId} onChange={update("puestoId")} />
+                <LabeledInput label="Turno ID" required icon="schedule" type="number" min="1" step="1" value={form.turnoId} onChange={update("turnoId")} />
+                <LabeledInput label="Estatus ID" required icon="verified_user" type="number" min="1" step="1" value={form.estatusId} onChange={update("estatusId")} />
+              </div>
+            </section>
+
+            {/* Acceso */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Acceso</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <LabeledInput label="Contraseña" required icon="password" type="password" name="new-password" autoComplete="new-password" value={form.password} onChange={update("password")} />
+                <LabeledSelect label="Rol" required icon="badge" value={form.rol} onChange={update("rol")}>
+                  <option value="empleado">empleado</option>
+                  <option value="admin">admin</option>
+                </LabeledSelect>
+              </div>
+            </section>
+
+            {/* Domicilio */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Domicilio</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <LabeledInput label="Calle" required icon="home" value={form.domicilio.calle} onChange={updateDom("calle")} />
+                <LabeledInput label="Número" icon="tag" value={form.domicilio.numero} onChange={updateDom("numero")} />
+                <LabeledInput label="Colonia" required icon="location_city" value={form.domicilio.colonia} onChange={updateDom("colonia")} />
+                <LabeledInput label="Ciudad" required icon="location_on" value={form.domicilio.ciudad} onChange={updateDom("ciudad")} />
+                <LabeledInput label="Estado" required icon="map" value={form.domicilio.estado} onChange={updateDom("estado")} />
+                <LabeledInput label="Código Postal" required icon="markunread_mailbox" value={form.domicilio.codigoPostal} onChange={updateDom("codigoPostal")} />
+              </div>
+            </section>
+
+            {/* Contacto */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Contacto de emergencia</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <LabeledInput label="Nombre" required icon="person" value={form.contacto.nombre} onChange={updateCtc("nombre")} />
+                <LabeledInput label="Parentesco" required icon="group" value={form.contacto.parentesco} onChange={updateCtc("parentesco")} />
+                <LabeledInput label="Teléfono" required icon="call" value={form.contacto.telefono} onChange={updateCtc("telefono")} />
+              </div>
+            </section>
+
+            {err && <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">{err}</div>}
+          </div>
+
+          <div className="sticky bottom-0 border-t bg-white p-4 flex items-center justify-end gap-2">
+            <button type="button" className="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50" onClick={onClose}>Cancelar</button>
+            <button type="submit" disabled={!requiredOk || busy} className={`px-4 py-2 rounded-lg text-white inline-flex items-center gap-2 ${!requiredOk || busy ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}>
+              <span className="material-symbols-outlined text-[20px]">{busy ? "hourglass_top" : "save"}</span>
+              {busy ? "Guardando..." : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
+/* =========================================
+   Drawer: Detalle / Editar (PUT con IDs)
+========================================= */
+function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading, error }) {
+  const [editMode, setEditMode] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (open) { setEditMode(false); setBusy(false); setErr(""); }
+  }, [open]);
+
+  const update = (k) => (e) => setDetail((d) => ({ ...d, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(""); setBusy(true);
+    try {
+      await onSave(detail);   // PUT con IDs
+      setEditMode(false);
+    } catch (ex) {
+      setErr(ex.message || "No se pudo guardar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
+      <div className={`absolute inset-0 bg-black/40 transition-opacity ${open ? "opacity-100" : "opacity-0"}`} onClick={onClose} />
+      <aside className={`absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl transition-transform ${open ? "translate-x-0" : "translate-x-full"}`} role="dialog" aria-modal="true" aria-label="Detalle de empleado" onClick={(e) => e.stopPropagation()}>
+        <header className="h-14 px-5 flex items-center justify-between border-b">
+          <h2 className="text-lg font-semibold">{editMode ? "Editar empleado" : "Detalle del empleado"}</h2>
+          <div className="flex items-center gap-2">
+            {!editMode && (
+              <button className="p-2 rounded hover:bg-slate-100" onClick={() => setEditMode(true)} title="Editar">
+                <span className="material-symbols-outlined">edit</span>
+              </button>
+            )}
+            <button className="p-2 rounded hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </header>
+
+        <div className="p-5 space-y-4">
+          {loading && <p className="text-slate-500">Cargando…</p>}
+          {!loading && error && <p className="text-red-600">{error}</p>}
+
+          {!loading && !error && detail && (
+            editMode ? (
+              <form className="space-y-4" onSubmit={submit}>
+                {err && <p className="text-sm text-red-600">{err}</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <LabeledInput label="Nombre" required icon="person" autoComplete="off" value={detail.nombre || ""} onChange={update("nombre")} />
+                  <LabeledInput label="Correo" required icon="mail" type="email" autoComplete="off" value={detail.email || detail.correo || ""} onChange={update("email")} />
+                  <LabeledInput label="Teléfono" icon="call" autoComplete="off" value={detail.telefono || ""} onChange={update("telefono")} />
+                  <LabeledInput label="Fecha de ingreso" icon="event" type="date" autoComplete="off" value={detail.fechaIngreso || ""} onChange={update("fechaIngreso")} />
+
+                  {/* IDs numéricos para PUT */}
+                  <LabeledInput label="Área ID"     required icon="apartment"        type="number" min="1" step="1" value={detail.areaId ?? ""}    onChange={update("areaId")} />
+                  <LabeledInput label="Puesto ID"   required icon="workspace_premium" type="number" min="1" step="1" value={detail.puestoId ?? ""}  onChange={update("puestoId")} />
+                  <LabeledInput label="Turno ID"    required icon="schedule"          type="number" min="1" step="1" value={detail.turnoId ?? ""}   onChange={update("turnoId")} />
+                  <LabeledInput label="Estatus ID"  required icon="verified_user"     type="number" min="1" step="1" value={detail.estatusId ?? ""} onChange={update("estatusId")} />
+                </div>
+
+                {/* Hints con nombres actuales */}
+                <p className="text-xs text-slate-500">
+                  {detail.area && <>Área actual: <b>{detail.area}</b> · </>}
+                  {detail.puesto && <>Puesto actual: <b>{detail.puesto}</b> · </>}
+                  {detail.turno && <>Turno actual: <b>{detail.turno}</b> · </>}
+                  {detail.estatus && <>Estatus actual: <b>{detail.estatus}</b></>}
+                </p>
+
+                <div className="flex justify-end gap-2">
+                  <button type="button" className="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50" onClick={() => setEditMode(false)}>Cancelar</button>
+                  <button type="submit" className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white" disabled={busy}>{busy ? "Guardando..." : "Guardar"}</button>
+                </div>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <Info label="ID" value={detail.id} />
+                <Info label="Nombre" value={detail.nombre} />
+                <Info label="Correo" value={detail.email || detail.correo} />
+                <Info label="Teléfono" value={detail.telefono || "—"} />
+                <Info label="Fecha ingreso" value={detail.fechaIngreso || "—"} />
+                <Info label="Área" value={detail.area || "—"} />
+                <Info label="Puesto" value={detail.puesto || "—"} />
+                <Info label="Turno" value={detail.turno || "—"} />
+                <Info label="Estatus" value={<StatusBadge status={detail.estatus} />} />
+              </div>
+            )
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div>
+      <div className="text-slate-500">{label}</div>
+      <div className="font-medium text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+/* =========================================
+   Componente principal
+========================================= */
 export default function EmployeeTable() {
-  // Mock temporal. Sustituye por datos del backend.
-  const [data] = useState([
-    {
-      id: "1",
-      name: "Ana García",
-      email: "ana.garcia@example.com",
-      role: "Desarrollador Frontend",
-      dept: "Tecnología",
-      status: "Activo",
-      avatar: "https://i.pravatar.cc/100?img=47",
-    },
-    {
-      id: "2",
-      name: "Carlos Rodriguez",
-      email: "carlos.r@example.com",
-      role: "Gerente de Proyectos",
-      dept: "Gestión",
-      status: "Activo",
-      avatar: null,
-    },
-    {
-      id: "3",
-      name: "Laura Martinez",
-      email: "laura.m@example.com",
-      role: "Diseñadora UX/UI",
-      dept: "Diseño",
-      status: "Inactivo",
-      avatar: "https://i.pravatar.cc/100?img=65",
-    },
-    {
-      id: "4",
-      name: "Javier Pérez",
-      email: "javier.p@example.com",
-      role: "Analista de Datos",
-      dept: "Business Intelligence",
-      status: "Activo",
-      avatar: null,
-    },
-  ]);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 5;
+
   const [selectedId, setSelectedId] = useState(null);
+
+  // detalle
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+
+  // add
+  const [addOpen, setAddOpen] = useState(false);
+
+  // eliminar (confirm + toast)
+  const [confirmDel, setConfirmDel] = useState({ open: false, id: null, name: "" });
+  const [toast, setToast] = useState({ open: false, text: "", kind: "success" });
+
+  /* Cargar lista */
+  useEffect(() => {
+    let alive = true;
+    const ac = new AbortController();
+    (async () => {
+      setLoading(true); setError("");
+      try {
+        const res = await fetch(API.base, {
+          headers: { Accept: "application/json", ...authHeaders() },
+          signal: ac.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const mapped = (Array.isArray(json) ? json : []).map((it) => ({
+          id: String(it.id),
+          name: it.nombre ?? "",
+          email: it.email ?? it.correo ?? "",
+          role: it.puesto ?? it.puestoNombre ?? "",
+          dept: it.area ?? it.areaNombre ?? "",
+          status: it.estatus ?? it.estatusNombre ?? "",
+          shift: it.turno ?? it.turnoNombre ?? "",
+          areaId: it.areaId ?? null,
+          puestoId: it.puestoId ?? null,
+          turnoId: it.turnoId ?? null,
+          estatusId: it.estatusId ?? null,
+        }));
+        if (alive) setData(mapped);
+      } catch {
+        if (alive) setError("No se pudo cargar la lista de empleados.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; ac.abort(); };
+  }, []);
+
+  /* Al seleccionar fila: traer detalle {id}/detalle */
+  useEffect(() => {
+    if (!selectedId) return;
+    let alive = true;
+    const ac = new AbortController();
+
+    // Prefill con datos de la fila para que se vea algo inmediato
+    const row = data.find((x) => x.id === selectedId);
+    if (row) {
+      setDetail({
+        id: row.id,
+        nombre: row.name,
+        email: row.email,
+        telefono: "",
+        fechaIngreso: "",
+        area: row.dept,
+        puesto: row.role,
+        turno: row.shift,
+        estatus: row.status,
+        areaId: row.areaId,
+        puestoId: row.puestoId,
+        turnoId: row.turnoId,
+        estatusId: row.estatusId,
+      });
+    }
+    setDetailOpen(true);
+    setDetailError("");
+    setDetailLoading(true);
+
+    (async () => {
+      try {
+        const res = await fetch(API.detail(selectedId), {
+          headers: { Accept: "application/json", ...authHeaders() },
+          signal: ac.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const it = await res.json();
+        if (!alive) return;
+        setDetail((prev) => ({
+          ...prev,
+          id: it.id,
+          nombre: it.nombre ?? prev?.nombre ?? "",
+          email: it.email ?? it.correo ?? prev?.email ?? "",
+          telefono: it.telefono ?? "",
+          fechaIngreso: it.fechaIngreso ?? "",
+          area: it.area ?? it.areaNombre ?? prev?.area ?? "",
+          puesto: it.puesto ?? it.puestoNombre ?? prev?.puesto ?? "",
+          turno: it.turno ?? it.turnoNombre ?? prev?.turno ?? "",
+          estatus: it.estatus ?? it.estatusNombre ?? prev?.estatus ?? "",
+          areaId:    it.areaId    ?? prev?.areaId ?? "",
+          puestoId:  it.puestoId  ?? prev?.puestoId ?? "",
+          turnoId:   it.turnoId   ?? prev?.turnoId ?? "",
+          estatusId: it.estatusId ?? prev?.estatusId ?? "",
+        }));
+      } catch {
+        if (alive) setDetailError("No se pudo cargar el detalle.");
+      } finally {
+        if (alive) setDetailLoading(false);
+      }
+    })();
+
+    return () => { alive = false; ac.abort(); };
+  }, [selectedId, data]);
+
+  /* PUT empleado (IDs) */
+  const saveDetail = async (d) => {
+    const toInt = (v, name) => {
+      const n = Number(v);
+      if (!Number.isInteger(n) || n <= 0) throw new Error(`${name} inválido`);
+      return n;
+    };
+    const payload = {
+      nombre: d.nombre,
+      email: d.email ?? d.correo,
+      telefono: d.telefono,
+      areaId:    toInt(d.areaId,    "Área ID"),
+      puestoId:  toInt(d.puestoId,  "Puesto ID"),
+      turnoId:   toInt(d.turnoId,   "Turno ID"),
+      estatusId: toInt(d.estatusId, "Estatus ID"),
+    };
+
+    const res = await fetch(`${API.base}/${d.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(txt || `Error al guardar (HTTP ${res.status})`);
+    }
+    const updated = await res.json();
+
+    // Tabla
+    setData((prev) =>
+      prev.map((x) =>
+        x.id === String(updated.id)
+          ? {
+              ...x,
+              name: updated.nombre ?? "",
+              email: updated.email ?? updated.correo ?? "",
+              role: updated.puesto ?? updated.puestoNombre ?? x.role,
+              dept: updated.area ?? updated.areaNombre ?? x.dept,
+              status: updated.estatus ?? updated.estatusNombre ?? x.status,
+              shift: updated.turno ?? updated.turnoNombre ?? x.shift,
+              areaId: payload.areaId, puestoId: payload.puestoId, turnoId: payload.turnoId, estatusId: payload.estatusId,
+            }
+          : x
+      )
+    );
+
+    // Detalle
+    setDetail((prev) => ({
+      ...prev,
+      nombre: updated.nombre ?? prev?.nombre,
+      email: updated.email ?? updated.correo ?? prev?.email,
+      telefono: updated.telefono ?? prev?.telefono,
+      area: updated.area ?? updated.areaNombre ?? prev?.area,
+      puesto: updated.puesto ?? updated.puestoNombre ?? prev?.puesto,
+      turno: updated.turno ?? updated.turnoNombre ?? prev?.turno,
+      estatus: updated.estatus ?? updated.estatusNombre ?? prev?.estatus,
+      areaId: payload.areaId,
+      puestoId: payload.puestoId,
+      turnoId: payload.turnoId,
+      estatusId: payload.estatusId,
+    }));
+  };
+
+  /* POST empleado (IDs + password + domicilio + contacto) */
+  const handleCreateEmployee = async (ui) => {
+    const payload = {
+      nombre: ui.nombre,
+      email: ui.email,
+      telefono: ui.telefono,
+      fechaIngreso: ui.fechaIngreso,
+      areaId: Number(ui.areaId),
+      puestoId: Number(ui.puestoId),
+      turnoId: Number(ui.turnoId),
+      estatusId: Number(ui.estatusId),
+      password: ui.password,
+      rol: ui.rol || "empleado",
+      domicilio: { ...ui.domicilio },
+      contacto:  { ...ui.contacto  },
+    };
+
+    const res = await fetch(API.base, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(txt || `Error al crear (HTTP ${res.status})`);
+    }
+    const created = await res.json();
+
+    // Inserta en tabla (sin abrir detalle)
+    setData((prev) => [
+      {
+        id: String(created.id),
+        name: created.nombre ?? "",
+        email: created.email ?? created.correo ?? "",
+        role: created.puesto ?? created.puestoNombre ?? "",
+        dept: created.area ?? created.areaNombre ?? "",
+        status: created.estatus ?? created.estatusNombre ?? "",
+        shift: created.turno ?? created.turnoNombre ?? "",
+        areaId: created.areaId ?? null,
+        puestoId: created.puestoId ?? null,
+        turnoId: created.turnoId ?? null,
+        estatusId: created.estatusId ?? null,
+      },
+      ...prev,
+    ]);
+    setPage(1);
+    setToast({ open: true, text: `Empleado "${created.nombre}" creado`, kind: "success" });
+    return created;
+  };
+
+  /* Eliminar — abre diálogo y luego elimina */
+  const askDelete = (id) => {
+    const row = data.find((x) => x.id === id);
+    setConfirmDel({ open: true, id, name: row?.name || "" });
+  };
+
+  const doDelete = async () => {
+    const { id, name } = confirmDel;
+    setConfirmDel((c) => ({ ...c, open: false })); // cerrar modal ya
+    const res = await fetch(`${API.base}/${id}`, { method: "DELETE", headers: { ...authHeaders() } });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      alert(txt || `No se pudo eliminar (HTTP ${res.status})`);
+      return;
+    }
+    setData((prev) => prev.filter((x) => x.id !== id));
+    if (selectedId === id) { setSelectedId(null); setDetailOpen(false); }
+    setToast({ open: true, text: `Empleado "${name}" eliminado`, kind: "success" });
+  };
+
+  /* filtros + búsqueda */
+  const [fDept, setFDept] = useState("Todos");
+  const [fRole, setFRole] = useState("Todos");
+  const [fShift, setFShift] = useState("Todos");
+  const [fStatus, setFStatus] = useState("Todos");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter((x) =>
-      [x.name, x.email, x.role, x.dept, x.status].some((v) => String(v).toLowerCase().includes(q))
-    );
-  }, [data, query]);
+    let list = data;
+    if (q) list = list.filter((x) => [x.name, x.email, x.role, x.dept, x.status].some((v) => String(v).toLowerCase().includes(q)));
+    if (fDept !== "Todos") list = list.filter((x) => x.dept === fDept);
+    if (fRole !== "Todos") list = list.filter((x) => x.role === fRole);
+    if (fShift !== "Todos") list = list.filter((x) => x.shift === fShift);
+    if (fStatus !== "Todos") list = list.filter((x) => x.status === fStatus);
+    return list;
+  }, [data, query, fDept, fRole, fShift, fStatus]);
 
+  const deptOpts  = useMemo(() => ["Todos", ...Array.from(new Set(data.map(d => d.dept).filter(Boolean)))], [data]);
+  const roleOpts  = useMemo(() => ["Todos", ...Array.from(new Set(data.map(d => d.role).filter(Boolean)))], [data]);
+  const shiftOpts = useMemo(() => ["Todos", ...Array.from(new Set(data.map(d => d.shift).filter(Boolean)))], [data]);
+
+  /* paginación */
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const slice = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage]);
+  const start = (currentPage - 1) * pageSize;
+  const slice = useMemo(() => filtered.slice(start, start + pageSize), [filtered, start, pageSize]);
 
+  /* CSV */
   const handleExport = () => {
-    const headers = ["Nombre", "Email", "Cargo", "Departamento", "Estado"];
-    const rows = filtered.map((r) => [r.name, r.email, r.role, r.dept, r.status]);
-    const csv =
-      [headers, ...rows].map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
-      ).join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "empleados.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    const headers = ["Nombre", "Correo", "Cargo", "Departamento", "Turno", "Estado"];
+    const rows = filtered.map((r) => [r.name, r.email, r.role, r.dept, r.shift || "", r.status]);
+    const csv = "\uFEFF" + [headers, ...rows].map(row => row.map(c => `"${String(c ?? "").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="empleados.csv"; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   };
 
-  const goPrev = () => setPage((p) => Math.max(1, p - 1));
-  const goNext = () => setPage((p) => Math.min(totalPages, p + 1));
-  const jump = (n) => setPage(n);
+  const goPrev=()=>setPage(p=>Math.max(1,p-1));
+  const goNext=()=>setPage(p=>Math.min(totalPages,p+1));
+  const jump=(n)=>setPage(n);
+
+  /* auto-hide toast */
+  useEffect(() => {
+    if (!toast.open) return;
+    const t = setTimeout(() => setToast((s) => ({ ...s, open: false })), 3000);
+    return () => clearTimeout(t);
+  }, [toast.open]);
 
   return (
-    <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+    <div className="h-dvh overflow-y-auto bg-[#F5F7FB] text-slate-800">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Empleados</h1>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm"
-            aria-label="Añadir empleado"
-            onClick={() => console.log("add")}
-          >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">add</span>
-            Añadir empleado
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50" onClick={handleExport}>
+              <span className="material-symbols-outlined text-[20px]">download</span> Exportar
+            </button>
+            <button type="button" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm" onClick={() => setAddOpen(true)}>
+              <span className="material-symbols-outlined text-[20px]">person_add</span> Añadir
+            </button>
+          </div>
         </div>
 
         {/* Toolbar */}
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[260px]">
-            <label htmlFor="search" className="sr-only">Buscar empleado</label>
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]" aria-hidden="true">
-              search
-            </span>
-            <input
-              id="search"
-              type="text"
-              placeholder="Buscar empleado..."
-              value={query}
-              onChange={(e) => { setPage(1); setQuery(e.target.value); }}
-              className="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="relative flex-1 min-w-[220px]">
+            <label htmlFor="search" className="sr-only">Buscar</label>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+            <input id="search" type="text" placeholder="Buscar nombre, correo, cargo..." value={query} onChange={(e)=>{ setPage(1); setQuery(e.target.value); }} className="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
-            onClick={() => console.log("filters")}
-            aria-label="Abrir filtros"
-          >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">filter_list</span>
-            Filtros
-          </button>
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
-            onClick={handleExport}
-            aria-label="Exportar CSV"
-          >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">download</span>
-            Exportar
-          </button>
+          {/* Filtros compactos */}
+          <select className="px-3 py-2 rounded-lg border border-slate-200 bg-white" value={fDept} onChange={(e)=>{setPage(1); setFDept(e.target.value);}}>
+            {deptOpts.map(opt => <option key={opt}>{opt}</option>)}
+          </select>
+          <select className="px-3 py-2 rounded-lg border border-slate-200 bg-white" value={fRole} onChange={(e)=>{setPage(1); setFRole(e.target.value);}}>
+            {roleOpts.map(opt => <option key={opt}>{opt}</option>)}
+          </select>
+          <select className="px-3 py-2 rounded-lg border border-slate-200 bg-white" value={fShift} onChange={(e)=>{setPage(1); setFShift(e.target.value);}}>
+            {shiftOpts.map(opt => <option key={opt}>{opt}</option>)}
+          </select>
+          <select className="px-3 py-2 rounded-lg border border-slate-200 bg-white" value={fStatus} onChange={(e)=>{setPage(1); setFStatus(e.target.value);}}>
+            {["Todos","Activo","Inactivo"].map(opt => <option key={opt}>{opt}</option>)}
+          </select>
         </div>
 
-        {/* Card + Table */}
+        {/* Tabla */}
         <div className="mt-4 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <caption className="sr-only">Listado de empleados</caption>
               <thead>
                 <tr className="bg-slate-50 text-slate-500 text-sm">
-                  <th className="w-10 py-3 pl-4 pr-2 text-left font-semibold" scope="col"></th>
-                  <th className="py-3 px-4 text-left font-semibold" scope="col">Nombre</th>
-                  <th className="py-3 px-4 text-left font-semibold" scope="col">Cargo</th>
-                  <th className="py-3 px-4 text-left font-semibold" scope="col">Departamento</th>
-                  <th className="py-3 px-4 text-left font-semibold" scope="col">Estado</th>
-                  <th className="py-3 px-4 text-left font-semibold" scope="col">Acciones</th>
+                  <th className="w-10 py-3 pl-4 pr-2 text-left font-semibold"><span className="sr-only">Sel</span></th>
+                  <th className="py-3 px-4 text-left font-semibold">Nombre</th>
+                  <th className="py-3 px-4 text-left font-semibold">Correo</th>
+                  <th className="py-3 px-4 text-left font-semibold">Cargo</th>
+                  <th className="py-3 px-4 text-left font-semibold">Departamento</th>
+                  <th className="py-3 px-4 text-left font-semibold">Turno</th>
+                  <th className="py-3 px-4 text-left font-semibold">Estado</th>
+                  <th className="py-3 px-4 text-left font-semibold">Acciones</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-slate-200">
-                {slice.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50">
-                    <td className="py-4 pl-4 pr-2 align-middle">
-                      <input
-                        type="radio"
-                        name="row"
-                        className="h-4 w-4 accent-blue-600"
-                        aria-label={`Seleccionar ${row.name}`}
-                        checked={selectedId === row.id}
-                        onChange={() => setSelectedId(row.id)}
-                      />
+                {loading && <tr><td colSpan={8} className="p-8 text-center text-slate-500">Cargando…</td></tr>}
+                {!loading && error && <tr><td colSpan={8} className="p-8 text-center text-red-600">{error}</td></tr>}
+
+                {!loading && !error && slice.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50" onClick={() => setSelectedId(row.id)}>
+                    <td className="py-4 pl-4 pr-2">
+                      <input type="radio" name="row" className="h-4 w-4 accent-blue-600" checked={row.id === selectedId} onChange={() => setSelectedId(row.id)} onClick={(e)=>e.stopPropagation()} />
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        {row.avatar ? (
-                          <img
-                            className="w-10 h-10 rounded-full object-cover"
-                            alt={`Avatar de ${row.name}`}
-                            src={row.avatar}
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200" aria-hidden="true" />
-                        )}
-                        <div>
-                          <div className="font-medium text-slate-900">{row.name}</div>
-                          <div className="text-sm text-slate-500">{row.email}</div>
-                        </div>
-                      </div>
-                    </td>
+                    <td className="py-4 px-4">{row.name}</td>
+                    <td className="py-4 px-4">{row.email}</td>
                     <td className="py-4 px-4">{row.role}</td>
                     <td className="py-4 px-4">{row.dept}</td>
-                    <td className="py-4 px-4">
-                      <StatusBadge status={row.status} />
-                    </td>
+                    <td className="py-4 px-4">{row.shift || "—"}</td>
+                    <td className="py-4 px-4"><StatusBadge status={row.status} /></td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3 text-slate-500">
-                        <button
-                          type="button"
-                          className="hover:text-blue-600"
-                          title="Editar"
-                          aria-label={`Editar ${row.name}`}
-                          onClick={() => console.log("edit", row.id)}
-                        >
-                          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
+                        <button className="hover:text-blue-600" title="Editar" onClick={(e) => { e.stopPropagation(); setSelectedId(row.id); }}>
+                          <span className="material-symbols-outlined text-[20px]">edit</span>
                         </button>
-                        <button
-                          type="button"
-                          className="hover:text-slate-700"
-                          title="Eliminar"
-                          aria-label={`Eliminar ${row.name}`}
-                          onClick={() => console.log("delete", row.id)}
-                        >
-                          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
+                        <button className="hover:text-red-600" title="Eliminar" onClick={(e) => { e.stopPropagation(); askDelete(row.id); }}>
+                          <span className="material-symbols-outlined text-[20px]">delete</span>
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
 
-                {slice.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-500">
-                      Sin resultados
-                    </td>
-                  </tr>
+                {!loading && !error && slice.length === 0 && (
+                  <tr><td colSpan={8} className="p-8 text-center text-slate-500">Sin resultados</td></tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          {/* Footer / Pagination */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4">
-            <span className="text-sm text-slate-500">
-              Mostrando {(currentPage - 1) * pageSize + (slice.length ? 1 : 0)}-{(currentPage - 1) * pageSize + slice.length} de {total} resultados
-            </span>
-
+          {/* Paginación */}
+          <div className="sticky bottom-0 bg-white border-t border-slate-200 p-4 flex flex-wrap items-center justify-between gap-4">
+            <span className="text-sm text-slate-500">Mostrando {start + (slice.length ? 1 : 0)}-{start + slice.length} de {total} resultados</span>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50"
-                onClick={goPrev}
-                disabled={currentPage === 1}
-              >
-                Anterior
-              </button>
-
-              {[...Array(totalPages)].map((_, i) => {
-                const n = i + 1;
-                const isActive = n === currentPage;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    className={`px-3 py-1 rounded-lg text-sm ${isActive
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "border border-slate-300 bg-white hover:bg-slate-50"
-                      }`}
-                    onClick={() => jump(n)}
-                  >
-                    {n}
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50"
-                onClick={goNext}
-                disabled={currentPage === totalPages}
-              >
-                Siguiente
-              </button>
+              <button className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50" onClick={goPrev} disabled={currentPage===1}>Anterior</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                <button key={n} className={`px-3 py-1 rounded-lg text-sm ${n===currentPage ? "bg-blue-600 text-white shadow-sm" : "border border-slate-300 bg-white hover:bg-slate-50"}`} onClick={()=>jump(n)}>{n}</button>
+              ))}
+              <button className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50" onClick={goNext} disabled={currentPage===totalPages}>Siguiente</button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Sheets y Modales */}
+      <AddEmployeeSheet open={addOpen} onClose={() => setAddOpen(false)} onCreate={handleCreateEmployee} />
+      <EmployeeDetailSheet open={detailOpen} onClose={() => setDetailOpen(false)} detail={detail} setDetail={setDetail} onSave={saveDetail} loading={detailLoading} error={detailError} />
+      <ConfirmDialog
+        open={confirmDel.open}
+        title="Eliminar empleado"
+        message={<>¿Seguro que deseas eliminar a <b>{confirmDel.name || "este empleado"}</b>? Esta acción no se puede deshacer.</>}
+        confirmText="Eliminar"
+        tone="danger"
+        onConfirm={doDelete}
+        onCancel={() => setConfirmDel({ open: false, id: null, name: "" })}
+      />
+      <Toast open={toast.open} text={toast.text} kind={toast.kind} onClose={() => setToast((s)=>({ ...s, open:false }))} />
     </div>
   );
 }

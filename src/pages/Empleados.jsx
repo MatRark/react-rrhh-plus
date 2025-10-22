@@ -686,9 +686,9 @@ export default function EmployeeTable() {
     return list;
   }, [data, query, fDept, fRole, fShift, fStatus]);
 
-  const deptOpts  = useMemo(() => ["Todos", ...Array.from(new Set(data.map(d => d.dept).filter(Boolean)))], [data]);
-  const roleOpts  = useMemo(() => ["Todos", ...Array.from(new Set(data.map(d => d.role).filter(Boolean)))], [data]);
-  const shiftOpts = useMemo(() => ["Todos", ...Array.from(new Set(data.map(d => d.shift).filter(Boolean)))], [data]);
+  const deptOpts  = useMemo(() => ["Departamento/s", ...Array.from(new Set(data.map(d => d.dept).filter(Boolean)))], [data]);
+  const roleOpts  = useMemo(() => ["Cargo/s", ...Array.from(new Set(data.map(d => d.role).filter(Boolean)))], [data]);
+  const shiftOpts = useMemo(() => ["Turno", ...Array.from(new Set(data.map(d => d.shift).filter(Boolean)))], [data]);
 
   /* paginación */
   const total = filtered.length;
@@ -752,7 +752,7 @@ export default function EmployeeTable() {
             {shiftOpts.map(opt => <option key={opt}>{opt}</option>)}
           </select>
           <select className="px-3 py-2 rounded-lg border border-slate-200 bg-white" value={fStatus} onChange={(e)=>{setPage(1); setFStatus(e.target.value);}}>
-            {["Todos","Activo","Inactivo"].map(opt => <option key={opt}>{opt}</option>)}
+            {["Estado","Activo","Inactivo"].map(opt => <option key={opt}>{opt}</option>)}
           </select>
         </div>
 

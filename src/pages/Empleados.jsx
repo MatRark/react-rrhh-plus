@@ -773,6 +773,7 @@ export default function EmployeeTable() {
 
         {/* Toolbar */}
         <div className="mt-4 lg:mt-6 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
+          
           <div className="relative flex-1 min-w-[220px]">
             <label htmlFor="search" className="sr-only">Buscar</label>
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>

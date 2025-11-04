@@ -1,89 +1,261 @@
-import React, { useMemo, useState } from "react";
-
-/* ===============================
-   Datos de ejemplo (mock)
-================================= */
-const MOCK_CONTRACTS = [
-  {
-    nombre: "Ana Torres",
-    tipo: "Tiempo Completo",
-    inicio: "2023-01-01",
-    fin: "2024-12-31",
-    estado: "Activo",
-  },
-  {
-    nombre: "Carlos Ruiz",
-    tipo: "Medio Tiempo",
-    inicio: "2023-03-15",
-    fin: "—",
-    estado: "Activo",
-  },
-  {
-    nombre: "Elena Gómez",
-    tipo: "Por Proyecto",
-    inicio: "2024-06-01",
-    fin: "2024-09-30",
-    estado: "Próximo",
-  },
-  {
-    nombre: "Javier Morales",
-    tipo: "Temporal",
-    inicio: "2024-02-01",
-    fin: "2024-05-31",
-    estado: "Vencido",
-  },
-];
+import React, { useMemo, useState, useEffect } from "react";
+import CreateContractForm from "../components/CreateContractForm";
+import { getUserInfo } from "../services/authService";
+import { getMyContract, getAllContracts } from "../services/contractService";
 
 /* ===============================
    Utilidades visuales
 ================================= */
 const STATE_COLORS = {
   Activo: "bg-green-100 text-green-800",
+  Vigente: "bg-green-100 text-green-800",
   Próximo: "bg-blue-100 text-blue-800",
   Vencido: "bg-gray-200 text-gray-700",
   Suspendido: "bg-yellow-100 text-yellow-700",
-};
-
-const TABLE_COLUMNS = [
-  "Nombre",
-  "Tipo de Contrato",
-  "Fecha de Inicio",
-  "Fecha de Fin",
-  "Estado",
-  "Acciones",
-];
-
-const ActionButton = ({ icon, tone = "default", onClick }) => {
-  const colors =
-    tone === "danger"
-      ? "hover:text-red-600 dark:hover:text-red-500"
-      : "hover:text-blue-600 dark:hover:text-blue-400";
-
-  return (
-    <button
-      className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition ${colors}`}
-      onClick={onClick}
-    >
-      <span className="material-symbols-outlined text-[18px]">{icon}</span>
-    </button>
-  );
+  Finalizado: "bg-gray-200 text-gray-700",
 };
 
 /* ===============================
-   Componente principal
+   Vista para EMPLEADO (Solo lectura)
 ================================= */
-export default function ContractTable() {
+function EmployeeContractView() {
+  const [contract, setContract] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    loadMyContract();
+  }, []);
+
+  const loadMyContract = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await getMyContract();
+      setContract(data);
+      console.log(data)
+    } catch (err) {
+      setError(err.message || "Error al cargar tu contrato");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
+        <div className="text-center">
+          <span className="material-symbols-outlined text-5xl text-blue-600 animate-spin">refresh</span>
+          <p className="mt-4 text-slate-600">Cargando tu contrato...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-red-600 text-3xl">error</span>
+              <div>
+                <h3 className="text-lg font-semibold text-red-800">Error</h3>
+                <p className="text-red-600">{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!contract) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-blue-600 text-3xl">info</span>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-800">Sin contrato activo</h3>
+                <p className="text-blue-600">No tienes un contrato registrado en el sistema.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "—";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("es-MX", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: "MXN",
+    }).format(amount);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Mi Contrato</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Consulta la información de tu contrato vigente.
+          </p>
+        </div>
+
+        {/* Card principal */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Header del contrato */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-3xl">description</span>
+                  <h2 className="text-2xl font-bold">{contract.tipoContrato}</h2>
+                </div>
+                <p className="text-white/80">Contrato ID: #{contract.contratoId}</p>
+              </div>
+              <span
+                className={`px-4 py-2 text-sm font-semibold rounded-full ${
+                  STATE_COLORS[contract.estatusContrato] || "bg-white/20 text-white"
+                }`}
+              >
+                {contract.estatusContrato}
+              </span>
+            </div>
+          </div>
+
+          {/* Contenido del contrato */}
+          <div className="p-6 space-y-6">
+            {/* Fechas */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-600">event</span>
+                Periodo del Contrato
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-xs text-slate-500 mb-1">Fecha de Inicio</p>
+                  <p className="text-lg font-semibold text-slate-800">
+                    {formatDate(contract.fechaInicio)}
+                  </p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-xs text-slate-500 mb-1">Fecha de Fin</p>
+                  <p className="text-lg font-semibold text-slate-800">
+                    {formatDate(contract.fechaFin)}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Salario */}
+            <section>
+              <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-green-600">payments</span>
+                Compensación
+              </h3>
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <p className="text-xs text-green-700 mb-1">Salario Base</p>
+                <p className="text-2xl font-bold text-green-800">
+                  {formatCurrency(contract.salarioBase)}
+                </p>
+                <p className="text-xs text-green-600 mt-1">por mes</p>
+              </div>
+            </section>
+
+            {/* Observaciones (si existen) */}
+            {contract.observaciones && (
+              <section>
+                <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-slate-600">notes</span>
+                  Observaciones
+                </h3>
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <p className="text-slate-700">{contract.observaciones}</p>
+                </div>
+              </section>
+            )}
+
+            {/* Información adicional */}
+            <section className="pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="material-symbols-outlined text-[16px]">info</span>
+                <p>
+                  Esta información es de solo lectura. Para cualquier modificación o consulta,
+                  contacta al departamento de Recursos Humanos.
+                </p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===============================
+   Vista para ADMIN/GESTOR (Gestión completa)
+================================= */
+function AdminContractView() {
+  const [contracts, setContracts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  useEffect(() => {
+    loadContracts();
+  }, []);
+
+  const loadContracts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await getAllContracts();
+      setContracts(data);
+      console.log(data);
+    } catch (err) {
+      setError(err.message || "Error al cargar contratos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContractCreated = (newContract) => {
+    console.log("Nuevo contrato creado:", newContract);
+    loadContracts(); // Recargar la lista
+    setShowCreateForm(false);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return MOCK_CONTRACTS.filter(
+    return contracts.filter(
       (r) =>
-        r.nombre.toLowerCase().includes(q) ||
-        r.tipo.toLowerCase().includes(q) ||
-        r.estado.toLowerCase().includes(q)
+        (r.nombreEmpleado?.toLowerCase().includes(q) || "") ||
+        (r.tipoContrato?.toLowerCase().includes(q) || "") ||
+        (r.estatusContrato?.toLowerCase().includes(q) || "")
     );
-  }, [query]);
+  }, [contracts, query]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "—";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("es-MX");
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F7FB] text-slate-800 flex flex-col">
@@ -97,7 +269,10 @@ export default function ContractTable() {
                 Gestiona todos los contratos de tus empleados.
               </p>
             </div>
-            <button className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm w-full sm:w-auto justify-center">
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm w-full sm:w-auto justify-center"
+            >
               <span className="material-symbols-outlined text-[20px]">add</span>
               Nuevo contrato
             </button>
@@ -118,9 +293,7 @@ export default function ContractTable() {
               />
             </div>
             <button className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
-              <span className="material-symbols-outlined text-[18px]">
-                filter_list
-              </span>
+              <span className="material-symbols-outlined text-[18px]">filter_list</span>
               Filtros
             </button>
           </div>
@@ -131,8 +304,8 @@ export default function ContractTable() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="w-10 py-3 pl-4 pr-2"></th> {/* ojito */}
-                    <th className="py-3 px-4 font-semibold">Nombre</th>
+                    <th className="w-10 py-3 pl-4 pr-2"></th>
+                    <th className="py-3 px-4 font-semibold">Empleado</th>
                     <th className="py-3 px-4 font-semibold">Tipo de Contrato</th>
                     <th className="py-3 px-4 font-semibold">Fecha de Inicio</th>
                     <th className="py-3 px-4 font-semibold">Fecha de Fin</th>
@@ -142,64 +315,89 @@ export default function ContractTable() {
                 </thead>
 
                 <tbody className="divide-y divide-slate-200">
-                  {filtered.map((r, i) => (
-                    <tr key={i} className="hover:bg-slate-50 transition-colors">
-                      {/* 👁️ Ojito a la izquierda */}
-                      <td className="py-3 pl-4 pr-2">
-                        <button
-                          className="text-slate-400 hover:text-blue-600"
-                          title="Ver detalles"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Aquí tu lógica para abrir detalle del contrato
-                            // setSelectedContract(r.id);
-                          }}
-                        >
-                          <span className="material-symbols-outlined text-[20px]">visibility</span>
-                        </button>
-                      </td>
-
-                      {/* Nombre */}
-                      <td className="py-3 px-4 font-medium text-slate-800">{r.nombre}</td>
-
-                      {/* Tipo */}
-                      <td className="py-3 px-4 text-slate-600">{r.tipo}</td>
-
-                      {/* Fechas */}
-                      <td className="py-3 px-4 text-slate-600">{r.inicio}</td>
-                      <td className="py-3 px-4 text-slate-600">{r.fin}</td>
-
-                      {/* Estado */}
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-3 py-1 text-xs font-medium rounded-full ${STATE_COLORS[r.estado] || "bg-slate-100 text-slate-700"
-                            }`}
-                        >
-                          {r.estado}
-                        </span>
-                      </td>
-
-                      {/* Acciones (igual que antes) */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition"
-                            title="Editar"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">edit</span>
-                          </button>
-                          <button
-                            className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-red-600 transition"
-                            title="Eliminar"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">delete</span>
-                          </button>
-                        </div>
+                  {loading && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
+                        Cargando contratos...
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                  )}
 
+                  {!loading && error && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-red-600">
+                        {error}
+                      </td>
+                    </tr>
+                  )}
+
+                  {!loading && !error && filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
+                        No se encontraron contratos
+                      </td>
+                    </tr>
+                  )}
+
+                  {!loading &&
+                    !error &&
+                    filtered.map((r) => (
+                      <tr key={r.contratoId} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 pl-4 pr-2">
+                          <button
+                            className="text-slate-400 hover:text-blue-600"
+                            title="Ver detalles"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Lógica para ver detalle
+                            }}
+                          >
+                            <span className="material-symbols-outlined text-[20px]">
+                              visibility
+                            </span>
+                          </button>
+                        </td>
+                        <td className="py-3 px-4 font-medium text-slate-800">
+                          {r.nombreEmpleado || "—"}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600">{r.tipoContrato || "—"}</td>
+                        <td className="py-3 px-4 text-slate-600">
+                          {formatDate(r.fechaInicio)}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600">{formatDate(r.fechaFin)}</td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`px-3 py-1 text-xs font-medium rounded-full ${
+                              STATE_COLORS[r.estatusContrato] ||
+                              "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {r.estatusContrato || "—"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition"
+                              title="Editar"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                edit
+                              </span>
+                            </button>
+                            <button
+                              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-red-600 transition"
+                              title="Eliminar"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                delete
+                              </span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
               </table>
             </div>
 
@@ -211,7 +409,7 @@ export default function ContractTable() {
               </p>
               <div className="flex items-center gap-2">
                 <button className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50">
-                  Anterior d
+                  Anterior
                 </button>
                 <button className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50">
                   Siguiente
@@ -221,6 +419,29 @@ export default function ContractTable() {
           </div>
         </div>
       </main>
+
+      {/* Modal de creación de contrato */}
+      {showCreateForm && (
+        <CreateContractForm
+          onClose={() => setShowCreateForm(false)}
+          onContractCreated={handleContractCreated}
+        />
+      )}
     </div>
   );
+}
+
+/* ===============================
+   Componente principal - Router por rol
+================================= */
+export default function ContractTable() {
+  const { roles } = getUserInfo();
+
+  // Determinar si el usuario es empleado (solo empleado, sin otros roles de admin)
+  const isEmployee = roles?.includes("empleado") && 
+                     !roles?.includes("admin") && 
+                     !roles?.includes("gestor_empleados");
+
+  // Mostrar vista según el rol
+  return isEmployee ? <EmployeeContractView /> : <AdminContractView />;
 }

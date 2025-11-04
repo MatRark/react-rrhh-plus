@@ -73,6 +73,22 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
     }
   };
 
+  // Verificar si el tipo de contrato requiere fecha de fin
+  const requiresEndDate = () => {
+    if (!formData.tipoContratoId) return true;
+    
+    const selectedType = contractTypes.find(
+      type => type.tipoContratoId === parseInt(formData.tipoContratoId)
+    );
+    
+    if (!selectedType) return true;
+    
+    const nombreContrato = selectedType.nombreContrato.toLowerCase();
+    
+    // Los tipos "Indeterminado" y "Honorarios" NO requieren fecha de fin
+    return !nombreContrato.includes("indeterminado") && !nombreContrato.includes("honorarios");
+  };
+
   // Validaciones
   const validateForm = () => {
     const newErrors = {};
@@ -80,8 +96,14 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
     if (!formData.empleadoId) newErrors.empleadoId = "Selecciona un empleado";
     if (!formData.tipoContratoId) newErrors.tipoContratoId = "Selecciona un tipo de contrato";
     if (!formData.fechaInicio) newErrors.fechaInicio = "La fecha de inicio es requerida";
-    if (!formData.fechaFin) newErrors.fechaFin = "La fecha de fin es requerida";
     
+    // Validar fecha de fin solo si el tipo de contrato lo requiere
+    const needsEndDate = requiresEndDate();
+    if (needsEndDate && !formData.fechaFin) {
+      newErrors.fechaFin = "La fecha de fin es requerida para este tipo de contrato";
+    }
+    
+    // Validar que fecha fin sea posterior a fecha inicio (solo si ambas están presentes)
     if (formData.fechaInicio && formData.fechaFin) {
       const inicio = new Date(formData.fechaInicio);
       const fin = new Date(formData.fechaFin);
@@ -113,6 +135,14 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
         [name]: ""
       }));
     }
+    
+    // Si cambia el tipo de contrato, limpiar el error de fecha fin
+    if (name === "tipoContratoId") {
+      setErrors(prev => ({
+        ...prev,
+        fechaFin: ""
+      }));
+    }
   };
 
   // Enviar formulario
@@ -126,11 +156,21 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
 
     try {
       const contractData = {
-        ...formData,
         empleadoId: parseInt(formData.empleadoId),
         tipoContratoId: parseInt(formData.tipoContratoId),
+        fechaInicio: formData.fechaInicio,
         salarioBase: parseFloat(formData.salarioBase)
       };
+
+      // Solo incluir fechaFin si tiene valor
+      if (formData.fechaFin) {
+        contractData.fechaFin = formData.fechaFin;
+      }
+
+      // Solo incluir observaciones si tiene valor
+      if (formData.observaciones) {
+        contractData.observaciones = formData.observaciones;
+      }
 
       const result = await createContract(contractData);
       
@@ -162,6 +202,11 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
       </div>
     );
   }
+
+  const endDateRequired = requiresEndDate();
+  const selectedType = contractTypes.find(
+    type => type.tipoContratoId === parseInt(formData.tipoContratoId)
+  );
 
   return (
     <div className="fixed inset-0 z-50">
@@ -256,6 +301,20 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
             {/* Sección: Fechas */}
             <section>
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Periodo del Contrato</h3>
+              
+              {/* Mensaje informativo para contratos Indeterminados u Honorarios */}
+              {selectedType && !endDateRequired && (
+                <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[20px] mt-0.5">info</span>
+                    <p>
+                      Para contratos de tipo <strong>{selectedType.nombreContrato}</strong>, 
+                      la fecha de fin es opcional. Puedes dejarla vacía si el contrato no tiene una fecha de término definida.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   label="Fecha de Inicio"
@@ -270,7 +329,7 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
 
                 <FormField
                   label="Fecha de Fin"
-                  required
+                  required={endDateRequired}
                   icon="event"
                   type="date"
                   name="fechaFin"

@@ -36,7 +36,7 @@ jobs:
 
       - name: "Smoke test (SPA: /login)"
         env:
-          URL: https://rrhh-plus.netlify.app
+          URL: https://rhplusgang2.netlify.app/
         run: |
           echo "Checking $URL/login ..."
           for i in {1..12}; do

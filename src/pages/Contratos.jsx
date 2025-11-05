@@ -108,6 +108,12 @@ function EmployeeContractView() {
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex flex-col sm:flex-row justify-between items-start rounded-t-xl gap-3">
             <div>
               <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-3xl">
+                  description
+                </span>
+                <h2 className="text-2xl font-bold break-words">
+                  {contract.tipoContrato}
+                </h2>
                 <span className="material-symbols-outlined text-3xl">description</span>
                 <div>
                   <h2 className="text-2xl font-bold">{contract.tipoContrato}</h2>
@@ -116,7 +122,6 @@ function EmployeeContractView() {
                   </p>
                 </div>
               </div>
-              <p className="text-white/80">Contrato ID: #{contract.contratoId}</p>
             </div>
             <span
               className={`px-4 py-1 rounded-full font-semibold text-sm ${

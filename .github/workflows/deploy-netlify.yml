@@ -1,4 +1,4 @@
-name: Deploy Frontend to Netlify (develop)
+name: Deploy Frontend to Netlify (rama develop)
 
 on:
   push:

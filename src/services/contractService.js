@@ -5,14 +5,14 @@ const API_BASE_URL = "https://rhplus.somee.com/api/Contracts";
 ============================ */
 function authHeaders() {
   return {
-    "Authorization": `Bearer ${localStorage.getItem("token")}`,
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
     "Content-Type": "application/json",
   };
 }
+
 async function parseOrThrow(response, fallbackMsg) {
   if (response.ok) {
-    // 204 No Content (DELETE)
-    if (response.status === 204) return true;
+    if (response.status === 204) return true; // DELETE sin contenido
     return await response.json();
   }
   let message = fallbackMsg || "Error en la solicitud";
@@ -23,6 +23,37 @@ async function parseOrThrow(response, fallbackMsg) {
     message = `${fallbackMsg} (HTTP ${response.status})`;
   }
   throw new Error(message);
+}
+
+/* ============================
+   UTILIDADES DE FORMATO
+============================ */
+function limpiarFechasYEstado(contract) {
+  if (!contract) return contract;
+  const hoy = new Date();
+
+  // Limpia fechas inválidas tipo 0001-01-01 o 1/1/1
+  if (contract.fechaInicio?.startsWith("0001")) contract.fechaInicio = null;
+  if (contract.fechaFin?.startsWith("0001") || contract.fechaFin === "1/1/1")
+    contract.fechaFin = null;
+
+  // Lógica de estado según fecha y tipo
+  if (
+    contract.tipoContrato === "Determinado" &&
+    contract.fechaFin &&
+    new Date(contract.fechaFin) < hoy
+  ) {
+    contract.estatusContrato = "Vencido";
+  } else {
+    contract.estatusContrato = "Vigente";
+  }
+
+  return contract;
+}
+
+function aplicarLimpiezaLista(lista) {
+  if (!Array.isArray(lista)) return lista;
+  return lista.map(limpiarFechasYEstado);
 }
 
 /* ============================
@@ -41,7 +72,8 @@ export async function getAllContracts(filters = {}) {
       : API_BASE_URL;
 
     const resp = await fetch(url, { method: "GET", headers: authHeaders() });
-    return await parseOrThrow(resp, "Error al obtener la lista de contratos");
+    const data = await parseOrThrow(resp, "Error al obtener la lista de contratos");
+    return aplicarLimpiezaLista(data);
   } catch (error) {
     throw new Error(error.message || "Error de conexión");
   }
@@ -56,59 +88,47 @@ export async function getContractById(id) {
       method: "GET",
       headers: authHeaders(),
     });
-    return await parseOrThrow(resp, "Error al obtener el detalle del contrato");
+    const data = await parseOrThrow(resp, "Error al obtener el detalle del contrato");
+    return limpiarFechasYEstado(data);
   } catch (error) {
     throw new Error(error.message || "Error de conexión");
   }
 }
 
 /* ============================
-   CREAR (mantiene tu lógica)
+   CREAR
 ============================ */
 export async function createContract(contractData) {
   try {
     const token = localStorage.getItem("token");
-
-    console.log("Enviando datos al servidor:", contractData);
-
     const response = await fetch(API_BASE_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(contractData),
     });
 
-    console.log("Respuesta del servidor - Status:", response.status);
-
     if (!response.ok) {
       let errorMessage = "Error al crear contrato";
-
       try {
         const errorData = await response.json();
-        console.log("Error detallado del servidor:", errorData);
         errorMessage = errorData.message || errorMessage;
-
         if (response.status === 400) {
-          errorMessage = errorData.message || "Datos inválidos enviados al servidor";
+          errorMessage = "Datos inválidos enviados al servidor";
         } else if (response.status === 500) {
-          errorMessage = "Error interno del servidor. Por favor, contacta al administrador.";
+          errorMessage = "Error interno del servidor.";
         }
-      } catch (parseError) {
-        console.log("No se pudo parsear la respuesta de error:", parseError);
+      } catch {
         errorMessage = `Error ${response.status}: ${response.statusText}`;
       }
-
       throw new Error(errorMessage);
     }
 
     const result = await response.json();
-    console.log("Contrato creado exitosamente:", result);
-    return result;
-
+    return limpiarFechasYEstado(result);
   } catch (error) {
-    console.error("Error completo en createContract:", error);
     throw new Error(error.message || "Error de conexión con el servidor");
   }
 }
@@ -118,16 +138,14 @@ export async function createContract(contractData) {
 ============================ */
 export async function updateContract(id, updatedData) {
   try {
-    console.log("📝 Actualizando contrato:", id, updatedData);
-
     const resp = await fetch(`${API_BASE_URL}/${id}`, {
       method: "PUT",
       headers: authHeaders(),
       body: JSON.stringify(updatedData),
     });
-    return await parseOrThrow(resp, "Error al actualizar contrato");
+    const data = await parseOrThrow(resp, "Error al actualizar contrato");
+    return limpiarFechasYEstado(data);
   } catch (error) {
-    console.error("❌ Error en updateContract:", error);
     throw new Error(error.message || "Error de conexión");
   }
 }
@@ -142,7 +160,6 @@ export async function deleteContract(id) {
       headers: authHeaders(),
     });
     await parseOrThrow(resp, "Error al eliminar contrato");
-    console.log("🗑️ Contrato eliminado:", id);
     return true;
   } catch (error) {
     throw new Error(error.message || "Error de conexión");
@@ -154,16 +171,18 @@ export async function deleteContract(id) {
 ============================ */
 export async function renewContract(id, renewalData) {
   try {
-    console.log("🔁 Renovando contrato:", id, renewalData);
+    // Evita null que rompe backend
+    if (!renewalData.nuevaFechaFin)
+      renewalData.nuevaFechaFin = renewalData.fechaRenovacion;
 
     const resp = await fetch(`${API_BASE_URL}/${id}/renewals`, {
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify(renewalData),
     });
-    return await parseOrThrow(resp, "Error al renovar contrato");
+    const data = await parseOrThrow(resp, "Error al renovar contrato");
+    return limpiarFechasYEstado(data);
   } catch (error) {
-    console.error("❌ Error en renewContract:", error);
     throw new Error(error.message || "Error de conexión");
   }
 }
@@ -201,12 +220,12 @@ export async function getMyContract() {
       method: "GET",
       headers: authHeaders(),
     });
-
     if (!resp.ok) {
       if (resp.status === 404) throw new Error("No tienes un contrato registrado");
       throw new Error("Error al obtener tu contrato");
     }
-    return await resp.json();
+    const data = await resp.json();
+    return limpiarFechasYEstado(data);
   } catch (error) {
     throw new Error(error.message || "Error de conexión");
   }

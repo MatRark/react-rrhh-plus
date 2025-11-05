@@ -3,11 +3,12 @@ import {
   getAllContracts,
   getContractById,
   deleteContract,
-} from "./contractService"; // import corregido para carpeta components
+} from "../services/contractService"; // ✅ usa "../" porque estás en components
 
-// ==========================
-// 🔵 MODAL DETALLE CONTRATO
-// ==========================
+
+/* ===========================
+   🔵 MODAL DETALLE CONTRATO
+=========================== */
 function ContractDetailModal({ contractId, onClose }) {
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,12 +31,14 @@ function ContractDetailModal({ contractId, onClose }) {
     }
   };
 
-  const formatDate = (d) =>
-    new Date(d).toLocaleDateString("es-MX", {
+  const formatDate = (d) => {
+    if (!d || d.startsWith("0001") || d === "1/1/1") return "—";
+    return new Date(d).toLocaleDateString("es-MX", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
+  };
 
   if (!contractId) return null;
 
@@ -46,13 +49,15 @@ function ContractDetailModal({ contractId, onClose }) {
         className="absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-white shadow-2xl animate-slide-in"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* HEADER degradado azul */}
+        {/* HEADER */}
         <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-3xl">description</span>
             <div>
               <h2 className="text-lg font-semibold">Detalle del Contrato</h2>
-              <p className="text-white/80 text-sm">Información principal del contrato</p>
+              <p className="text-white/80 text-sm">
+                Información principal del contrato
+              </p>
             </div>
           </div>
           <button
@@ -66,7 +71,9 @@ function ContractDetailModal({ contractId, onClose }) {
         {/* CONTENIDO */}
         <div className="p-6 overflow-y-auto h-[calc(100%-7rem)]">
           {loading ? (
-            <div className="text-center py-10 text-slate-500">Cargando contrato...</div>
+            <div className="text-center py-10 text-slate-500">
+              Cargando contrato...
+            </div>
           ) : error ? (
             <div className="text-center py-10 text-red-600">{error}</div>
           ) : (
@@ -106,6 +113,23 @@ function ContractDetailModal({ contractId, onClose }) {
                   <p className="text-slate-700">{contract.observaciones}</p>
                 </div>
               )}
+
+              {contract.renovaciones?.length > 0 && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Renovaciones</p>
+                  <ul className="list-disc ml-6 space-y-1">
+                    {contract.renovaciones.map((r) => (
+                      <li key={r.renovacionId}>
+                        {formatDate(r.fechaRenovacion)} →{" "}
+                        {formatDate(r.nuevaFechaFin)}{" "}
+                        <span className="text-slate-500">
+                          ({r.comentario || "Sin comentario"})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -113,8 +137,8 @@ function ContractDetailModal({ contractId, onClose }) {
 
       <style>{`
         @keyframes slide-in {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;
@@ -124,15 +148,14 @@ function ContractDetailModal({ contractId, onClose }) {
   );
 }
 
-// ==========================
-// ❌ MODAL ELIMINAR CONTRATO
-// ==========================
+/* ===========================
+   ❌ MODAL ELIMINAR CONTRATO
+=========================== */
 function ConfirmDeleteModal({ contract, onConfirm, onCancel }) {
   if (!contract) return null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full relative border border-red-100">
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full border border-red-100">
         <div className="flex items-center gap-3 mb-4">
           <span className="material-symbols-outlined text-red-600 text-3xl">
             warning
@@ -164,9 +187,9 @@ function ConfirmDeleteModal({ contract, onConfirm, onCancel }) {
   );
 }
 
-// ==========================
-// 🧩 VISTA PRINCIPAL
-// ==========================
+/* ===========================
+   VISTA PRINCIPAL
+=========================== */
 export default function AdminContractView() {
   const [contracts, setContracts] = useState([]);
   const [filters, setFilters] = useState({
@@ -180,7 +203,7 @@ export default function AdminContractView() {
   const [selectedContractId, setSelectedContractId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 6;
 
   useEffect(() => {
     loadContracts();
@@ -223,6 +246,11 @@ export default function AdminContractView() {
     (page - 1) * pageSize + pageSize
   );
   const totalPages = Math.ceil(filtered.length / pageSize);
+
+  const formatDate = (d) => {
+    if (!d || d.startsWith("0001") || d === "1/1/1") return "—";
+    return new Date(d).toLocaleDateString("es-MX");
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
@@ -272,23 +300,6 @@ export default function AdminContractView() {
             <option value="3">Suspendido</option>
             <option value="4">Finalizado</option>
           </select>
-
-          <input
-            type="date"
-            value={filters.fechaInicioDesde}
-            onChange={(e) =>
-              setFilters({ ...filters, fechaInicioDesde: e.target.value })
-            }
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={filters.fechaFinHasta}
-            onChange={(e) =>
-              setFilters({ ...filters, fechaFinHasta: e.target.value })
-            }
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-          />
         </div>
 
         {/* TABLA */}
@@ -322,12 +333,8 @@ export default function AdminContractView() {
                   <tr key={c.contratoId} className="hover:bg-slate-50">
                     <td className="py-3 px-4">{c.nombreEmpleado}</td>
                     <td className="py-3 px-4">{c.tipoContrato}</td>
-                    <td className="py-3 px-4">
-                      {new Date(c.fechaInicio).toLocaleDateString("es-MX")}
-                    </td>
-                    <td className="py-3 px-4">
-                      {new Date(c.fechaFin).toLocaleDateString("es-MX")}
-                    </td>
+                    <td className="py-3 px-4">{formatDate(c.fechaInicio)}</td>
+                    <td className="py-3 px-4">{formatDate(c.fechaFin)}</td>
                     <td className="py-3 px-4">{c.estatusContrato}</td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex justify-end gap-2">
@@ -390,6 +397,7 @@ export default function AdminContractView() {
           onClose={() => setSelectedContractId(null)}
         />
       )}
+
       {deleteTarget && (
         <ConfirmDeleteModal
           contract={deleteTarget}

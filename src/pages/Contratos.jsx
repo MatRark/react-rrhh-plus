@@ -1,11 +1,14 @@
-import React, { useMemo, useState, useEffect } from "react";
-import CreateContractForm from "../components/CreateContractForm";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  getAllContracts,
+  getMyContract,
+  getContractById,
+  deleteContract,
+} from "../services/contractService";
 import { getUserInfo } from "../services/authService";
-import { getMyContract, getAllContracts } from "../services/contractService";
+import CreateContractForm from "../components/CreateContractForm";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 
-/* ===============================
-   Utilidades visuales
-================================= */
 const STATE_COLORS = {
   Activo: "bg-green-100 text-green-800",
   Vigente: "bg-green-100 text-green-800",
@@ -15,9 +18,23 @@ const STATE_COLORS = {
   Finalizado: "bg-gray-200 text-gray-700",
 };
 
-/* ===============================
-   Vista para EMPLEADO (Solo lectura)
-================================= */
+/* ============================================================
+   COMPONENTE PRINCIPAL: Contratos (con vista por rol)
+============================================================ */
+export default function Contratos() {
+  const { roles } = getUserInfo();
+
+  const isEmployee =
+    roles?.includes("empleado") &&
+    !roles?.includes("admin") &&
+    !roles?.includes("gestor_empleados");
+
+  return isEmployee ? <EmployeeContractView /> : <AdminContractView />;
+}
+
+/* ============================================================
+   VISTA PARA EMPLEADOS NORMALES
+============================================================ */
 function EmployeeContractView() {
   const [contract, setContract] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,11 +46,9 @@ function EmployeeContractView() {
 
   const loadMyContract = async () => {
     setLoading(true);
-    setError("");
     try {
       const data = await getMyContract();
       setContract(data);
-      console.log(data)
     } catch (err) {
       setError(err.message || "Error al cargar tu contrato");
     } finally {
@@ -41,134 +56,104 @@ function EmployeeContractView() {
     }
   };
 
-  if (loading) {
+  const formatDate = (d) =>
+    d ? new Date(d).toLocaleDateString("es-MX") : "—";
+  const formatCurrency = (n) =>
+    new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n || 0);
+
+  if (loading)
     return (
       <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
         <div className="text-center">
-          <span className="material-symbols-outlined text-5xl text-blue-600 animate-spin">refresh</span>
+          <span className="material-symbols-outlined text-5xl text-blue-600 animate-spin">
+            refresh
+          </span>
           <p className="mt-4 text-slate-600">Cargando tu contrato...</p>
         </div>
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
-      <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-red-600 text-3xl">error</span>
-              <div>
-                <h3 className="text-lg font-semibold text-red-800">Error</h3>
-                <p className="text-red-600">{error}</p>
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
+        <div className="max-w-md bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <span className="material-symbols-outlined text-red-600 text-4xl mb-2">
+            error
+          </span>
+          <h3 className="text-lg font-semibold text-red-800 mb-1">Error</h3>
+          <p className="text-red-600">{error}</p>
         </div>
       </div>
     );
-  }
 
-  if (!contract) {
+  if (!contract)
     return (
-      <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-blue-600 text-3xl">info</span>
-              <div>
-                <h3 className="text-lg font-semibold text-blue-800">Sin contrato activo</h3>
-                <p className="text-blue-600">No tienes un contrato registrado en el sistema.</p>
-              </div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
+        <div className="max-w-md bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
+          <span className="material-symbols-outlined text-blue-600 text-4xl mb-2">
+            info
+          </span>
+          <h3 className="text-lg font-semibold text-blue-800 mb-1">
+            Sin contrato activo
+          </h3>
+          <p className="text-blue-600">
+            No tienes un contrato registrado en el sistema.
+          </p>
         </div>
       </div>
     );
-  }
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("es-MX", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(amount);
-  };
 
   return (
     <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Mi Contrato</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Consulta la información de tu contrato vigente.
-          </p>
-        </div>
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-3xl font-bold mb-2">Mi Contrato</h1>
+        <p className="text-slate-500 text-sm mb-8">
+          Consulta la información de tu contrato vigente.
+        </p>
 
-        {/* Card principal */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {/* Header del contrato */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-3xl">description</span>
-                  <h2 className="text-2xl font-bold">{contract.tipoContrato}</h2>
-                </div>
-                <p className="text-white/80">Contrato ID: #{contract.contratoId}</p>
+        <div className="bg-white rounded-xl shadow border border-slate-200">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex justify-between items-start rounded-t-xl">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-3xl">description</span>
+                <h2 className="text-2xl font-bold">{contract.tipoContrato}</h2>
               </div>
-              <span
-                className={`px-4 py-2 text-sm font-semibold rounded-full ${
-                  STATE_COLORS[contract.estatusContrato] || "bg-white/20 text-white"
-                }`}
-              >
-                {contract.estatusContrato}
-              </span>
+              <p className="text-white/80">Contrato ID: #{contract.contratoId}</p>
             </div>
+            <span
+              className={`px-4 py-1 rounded-full font-semibold text-sm ${
+                STATE_COLORS[contract.estatusContrato] ||
+                "bg-white/20 text-white"
+              }`}
+            >
+              {contract.estatusContrato}
+            </span>
           </div>
 
-          {/* Contenido del contrato */}
           <div className="p-6 space-y-6">
-            {/* Fechas */}
             <section>
-              <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold mb-3 text-slate-700 flex items-center gap-2">
                 <span className="material-symbols-outlined text-blue-600">event</span>
                 Periodo del Contrato
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500 mb-1">Fecha de Inicio</p>
-                  <p className="text-lg font-semibold text-slate-800">
-                    {formatDate(contract.fechaInicio)}
-                  </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-4 rounded-lg">
+                  <p className="text-xs text-slate-500 mb-1">Inicio</p>
+                  <p className="text-lg font-semibold">{formatDate(contract.fechaInicio)}</p>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-xs text-slate-500 mb-1">Fecha de Fin</p>
-                  <p className="text-lg font-semibold text-slate-800">
-                    {formatDate(contract.fechaFin)}
-                  </p>
+                <div className="bg-slate-50 p-4 rounded-lg">
+                  <p className="text-xs text-slate-500 mb-1">Fin</p>
+                  <p className="text-lg font-semibold">{formatDate(contract.fechaFin)}</p>
                 </div>
               </div>
             </section>
 
-            {/* Salario */}
             <section>
-              <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold mb-3 text-slate-700 flex items-center gap-2">
                 <span className="material-symbols-outlined text-green-600">payments</span>
                 Compensación
               </h3>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
                 <p className="text-xs text-green-700 mb-1">Salario Base</p>
                 <p className="text-2xl font-bold text-green-800">
                   {formatCurrency(contract.salarioBase)}
@@ -177,10 +162,9 @@ function EmployeeContractView() {
               </div>
             </section>
 
-            {/* Observaciones (si existen) */}
             {contract.observaciones && (
               <section>
-                <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-semibold mb-3 text-slate-700 flex items-center gap-2">
                   <span className="material-symbols-outlined text-slate-600">notes</span>
                   Observaciones
                 </h3>
@@ -189,56 +173,46 @@ function EmployeeContractView() {
                 </div>
               </section>
             )}
-
-            {/* Información adicional */}
-            <section className="pt-4 border-t border-slate-200">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="material-symbols-outlined text-[16px]">info</span>
-                <p>
-                  Esta información es de solo lectura. Para cualquier modificación o consulta,
-                  contacta al departamento de Recursos Humanos.
-                </p>
-              </div>
-            </section>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
 
-/* ===============================
-   Vista para ADMIN/GESTOR (Gestión completa)
-================================= */
+/* ============================================================
+   VISTA PARA ADMIN / GESTOR (tabla CRUD)
+============================================================ */
 function AdminContractView() {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const [showForm, setShowForm] = useState(false);
+  const [mode, setMode] = useState("create");
+  const [selectedId, setSelectedId] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [showDelete, setShowDelete] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
 
   useEffect(() => {
     loadContracts();
   }, []);
 
   const loadContracts = async () => {
-    setLoading(true);
-    setError("");
     try {
+      setLoading(true);
       const data = await getAllContracts();
       setContracts(data);
-      console.log(data);
     } catch (err) {
       setError(err.message || "Error al cargar contratos");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleContractCreated = (newContract) => {
-    console.log("Nuevo contrato creado:", newContract);
-    loadContracts(); // Recargar la lista
-    setShowCreateForm(false);
   };
 
   const filtered = useMemo(() => {
@@ -251,197 +225,206 @@ function AdminContractView() {
     );
   }, [contracts, query]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("es-MX");
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const formatDate = (d) => (d ? new Date(d).toLocaleDateString("es-MX") : "—");
+
+  // acciones CRUD
+  const openCreate = () => {
+    setMode("create");
+    setSelectedId(null);
+    setShowForm(true);
+  };
+  const openEdit = (id) => {
+    setMode("edit");
+    setSelectedId(id);
+    setShowForm(true);
+  };
+  const openRenew = (id) => {
+    setMode("renew");
+    setSelectedId(id);
+    setShowForm(true);
+  };
+  const openDetail = async (id) => {
+    try {
+      const data = await getContractById(id);
+      setDetail(data);
+      setShowDetail(true);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+  const askDelete = (id) => {
+    setSelectedId(id);
+    setShowDelete(true);
+  };
+  const confirmDelete = async () => {
+    try {
+      await deleteContract(selectedId);
+      setShowDelete(false);
+      setSelectedId(null);
+      loadContracts();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F7FB] text-slate-800 flex flex-col">
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* HEADER */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold">Contratos</h1>
-              <p className="text-slate-500 text-sm mt-1">
-                Gestiona todos los contratos de tus empleados.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm w-full sm:w-auto justify-center"
-            >
-              <span className="material-symbols-outlined text-[20px]">add</span>
-              Nuevo contrato
-            </button>
+    <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Gestión de Contratos</h1>
+            <p className="text-slate-500 text-sm">
+              Administra, edita y renueva contratos.
+            </p>
           </div>
+          <button
+            onClick={openCreate}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            Nuevo contrato
+          </button>
+        </div>
 
-          {/* SEARCH BAR */}
-          <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-            <div className="relative flex-1 min-w-[220px]">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">
-                search
-              </span>
-              <input
-                type="text"
-                placeholder="Buscar por nombre, tipo o estado..."
-                className="w-full pl-10 pr-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <button className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50">
-              <span className="material-symbols-outlined text-[18px]">filter_list</span>
-              Filtros
-            </button>
+        {/* buscador */}
+        <div className="mb-6">
+          <div className="relative w-full sm:w-96">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              search
+            </span>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Buscar por nombre, tipo o estado..."
+              className="pl-10 pr-3 py-2 w-full border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
           </div>
+        </div>
 
-          {/* TABLE */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="w-10 py-3 pl-4 pr-2"></th>
-                    <th className="py-3 px-4 font-semibold">Empleado</th>
-                    <th className="py-3 px-4 font-semibold">Tipo de Contrato</th>
-                    <th className="py-3 px-4 font-semibold">Fecha de Inicio</th>
-                    <th className="py-3 px-4 font-semibold">Fecha de Fin</th>
-                    <th className="py-3 px-4 font-semibold">Estado</th>
-                    <th className="py-3 px-4 font-semibold text-right">Acciones</th>
+        {/* tabla */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="py-3 px-4 text-left">Empleado</th>
+                <th className="py-3 px-4 text-left">Tipo</th>
+                <th className="py-3 px-4 text-left">Inicio</th>
+                <th className="py-3 px-4 text-left">Fin</th>
+                <th className="py-3 px-4 text-left">Estado</th>
+                <th className="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} className="py-6 text-center">Cargando contratos...</td></tr>
+              ) : error ? (
+                <tr><td colSpan={6} className="py-6 text-center text-red-600">{error}</td></tr>
+              ) : paginated.length === 0 ? (
+                <tr><td colSpan={6} className="py-6 text-center text-slate-500">No se encontraron resultados</td></tr>
+              ) : (
+                paginated.map((c) => (
+                  <tr key={c.contratoId} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-4">{c.nombreEmpleado || "—"}</td>
+                    <td className="py-3 px-4">{c.tipoContrato || "—"}</td>
+                    <td className="py-3 px-4">{formatDate(c.fechaInicio)}</td>
+                    <td className="py-3 px-4">{formatDate(c.fechaFin)}</td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          STATE_COLORS[c.estatusContrato] ||
+                          "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {c.estatusContrato || "—"}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right flex justify-end gap-2">
+                      <button title="Ver detalles" className="p-2 rounded-full hover:bg-slate-100 text-blue-600" onClick={() => openDetail(c.contratoId)}>
+                        <span className="material-symbols-outlined text-[18px]">visibility</span>
+                      </button>
+                      <button title="Editar" className="p-2 rounded-full hover:bg-slate-100 text-green-600" onClick={() => openEdit(c.contratoId)}>
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                      </button>
+                      <button title="Renovar" className="p-2 rounded-full hover:bg-slate-100 text-indigo-600" onClick={() => openRenew(c.contratoId)}>
+                        <span className="material-symbols-outlined text-[18px]">autorenew</span>
+                      </button>
+                      <button title="Eliminar" className="p-2 rounded-full hover:bg-slate-100 text-red-600" onClick={() => askDelete(c.contratoId)}>
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </td>
                   </tr>
-                </thead>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-                <tbody className="divide-y divide-slate-200">
-                  {loading && (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        Cargando contratos...
-                      </td>
-                    </tr>
-                  )}
-
-                  {!loading && error && (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-red-600">
-                        {error}
-                      </td>
-                    </tr>
-                  )}
-
-                  {!loading && !error && filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        No se encontraron contratos
-                      </td>
-                    </tr>
-                  )}
-
-                  {!loading &&
-                    !error &&
-                    filtered.map((r) => (
-                      <tr key={r.contratoId} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 pl-4 pr-2">
-                          <button
-                            className="text-slate-400 hover:text-blue-600"
-                            title="Ver detalles"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Lógica para ver detalle
-                            }}
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              visibility
-                            </span>
-                          </button>
-                        </td>
-                        <td className="py-3 px-4 font-medium text-slate-800">
-                          {r.nombreEmpleado || "—"}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600">{r.tipoContrato || "—"}</td>
-                        <td className="py-3 px-4 text-slate-600">
-                          {formatDate(r.fechaInicio)}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600">{formatDate(r.fechaFin)}</td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`px-3 py-1 text-xs font-medium rounded-full ${
-                              STATE_COLORS[r.estatusContrato] ||
-                              "bg-slate-100 text-slate-700"
-                            }`}
-                          >
-                            {r.estatusContrato || "—"}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition"
-                              title="Editar"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">
-                                edit
-                              </span>
-                            </button>
-                            <button
-                              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-red-600 transition"
-                              title="Eliminar"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">
-                                delete
-                              </span>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* PAGINATION */}
-            <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
-              <p className="text-slate-500">
-                Mostrando <b>{filtered.length}</b> resultado
-                {filtered.length !== 1 && "s"}
-              </p>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50">
-                  Anterior
-                </button>
-                <button className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50">
-                  Siguiente
-                </button>
-              </div>
-            </div>
+        {/* paginación */}
+        <div className="mt-4 flex justify-between items-center text-sm">
+          <p>Página {page} de {totalPages || 1}</p>
+          <div className="flex gap-2">
+            <button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1} className="px-3 py-1 border rounded-lg disabled:opacity-50">Anterior</button>
+            <button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages || totalPages === 0} className="px-3 py-1 border rounded-lg disabled:opacity-50">Siguiente</button>
           </div>
         </div>
       </main>
 
-      {/* Modal de creación de contrato */}
-      {showCreateForm && (
+      {/* Modal Crear/Editar/Renovar */}
+      {showForm && (
         <CreateContractForm
-          onClose={() => setShowCreateForm(false)}
-          onContractCreated={handleContractCreated}
+          mode={mode}
+          contractId={selectedId}
+          onClose={() => setShowForm(false)}
+          onSuccess={loadContracts}
         />
       )}
+
+      {/* Modal detalle */}
+      {showDetail && detail && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowDetail(false)}>
+          <div className="bg-white p-6 rounded-xl w-full max-w-lg shadow" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-semibold mb-2">Detalles del Contrato</h2>
+            <div className="space-y-1 text-sm">
+              <p><b>Empleado:</b> {detail.nombreEmpleado}</p>
+              <p><b>Tipo:</b> {detail.tipoContrato}</p>
+              <p><b>Estado:</b> {detail.estatusContrato}</p>
+              <p><b>Inicio:</b> {formatDate(detail.fechaInicio)}</p>
+              <p><b>Fin:</b> {formatDate(detail.fechaFin)}</p>
+              <p><b>Salario:</b> ${detail.salarioBase}</p>
+              <p><b>Observaciones:</b> {detail.observaciones || "—"}</p>
+              <hr className="my-3" />
+              <h3 className="font-semibold">Renovaciones</h3>
+              <ul className="list-disc ml-6">
+                {detail.renovaciones?.length
+                  ? detail.renovaciones.map((r) => (
+                      <li key={r.renovacionId}>
+                        {formatDate(r.fechaRenovacion)} → {formatDate(r.nuevaFechaFin)} ({r.comentario})
+                      </li>
+                    ))
+                  : <li className="text-slate-500">Sin renovaciones</li>}
+              </ul>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button className="px-4 py-2 rounded-lg border" onClick={() => setShowDetail(false)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal eliminar */}
+      <ConfirmDeleteModal
+        show={showDelete}
+        message="¿Deseas eliminar este contrato? Esta acción no se puede deshacer."
+        onCancel={() => setShowDelete(false)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
-}
-
-/* ===============================
-   Componente principal - Router por rol
-================================= */
-export default function ContractTable() {
-  const { roles } = getUserInfo();
-
-  // Determinar si el usuario es empleado (solo empleado, sin otros roles de admin)
-  const isEmployee = roles?.includes("empleado") && 
-                     !roles?.includes("admin") && 
-                     !roles?.includes("gestor_empleados");
-
-  // Mostrar vista según el rol
-  return isEmployee ? <EmployeeContractView /> : <AdminContractView />;
 }

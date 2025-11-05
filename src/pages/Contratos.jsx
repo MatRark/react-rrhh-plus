@@ -8,6 +8,7 @@ import {
 import { getUserInfo } from "../services/authService";
 import CreateContractForm from "../components/CreateContractForm";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
+import NoContractView from "../components/NoContractView"; // Importa el nuevo componente
 
 const STATE_COLORS = {
   Activo: "bg-green-100 text-green-800",
@@ -16,6 +17,13 @@ const STATE_COLORS = {
   Vencido: "bg-gray-200 text-gray-700",
   Suspendido: "bg-yellow-100 text-yellow-700",
   Finalizado: "bg-gray-200 text-gray-700",
+};
+
+// Descripciones para cada tipo de contrato
+const CONTRACT_DESCRIPTIONS = {
+  Determinado: "Contrato por tiempo específico con fecha de inicio y fin definidas",
+  Indeterminado: "Contrato de planta con duración indefinida",
+  Honorarios: "Contrato por servicios profesionales sin relación laboral"
 };
 
 /* ============================================================
@@ -61,6 +69,11 @@ function EmployeeContractView() {
   const formatCurrency = (n) =>
     new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n || 0);
 
+  // Obtener la descripción del contrato
+  const getContractDescription = (tipoContrato) => {
+    return CONTRACT_DESCRIPTIONS[tipoContrato] || "Tipo de contrato general";
+  };
+
   if (loading)
     return (
       <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
@@ -74,34 +87,11 @@ function EmployeeContractView() {
     );
 
   if (error)
-    return (
-      <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
-        <div className="max-w-md bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <span className="material-symbols-outlined text-red-600 text-4xl mb-2">
-            error
-          </span>
-          <h3 className="text-lg font-semibold text-red-800 mb-1">Error</h3>
-          <p className="text-red-600">{error}</p>
-        </div>
-      </div>
-    );
+    return <NoContractView />;
 
+  // Reemplaza la vista anterior con el nuevo componente
   if (!contract)
-    return (
-      <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
-        <div className="max-w-md bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
-          <span className="material-symbols-outlined text-blue-600 text-4xl mb-2">
-            info
-          </span>
-          <h3 className="text-lg font-semibold text-blue-800 mb-1">
-            Sin contrato activo
-          </h3>
-          <p className="text-blue-600">
-            No tienes un contrato registrado en el sistema.
-          </p>
-        </div>
-      </div>
-    );
+    return <NoContractView />;
 
   return (
     <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
@@ -116,9 +106,13 @@ function EmployeeContractView() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="material-symbols-outlined text-3xl">description</span>
-                <h2 className="text-2xl font-bold">{contract.tipoContrato}</h2>
+                <div>
+                  <h2 className="text-2xl font-bold">{contract.tipoContrato}</h2>
+                  <p className="text-white/80 text-sm mt-1">
+                    {getContractDescription(contract.tipoContrato)}
+                  </p>
+                </div>
               </div>
-              <p className="text-white/80">Contrato ID: #{contract.contratoId}</p>
             </div>
             <span
               className={`px-4 py-1 rounded-full font-semibold text-sm ${

@@ -106,7 +106,7 @@ export default function Sidebar() {
               aria-label="Menú de usuario"
               className="absolute left-0 right-0 -top-2 -translate-y-full bg-white border border-gray-200 shadow-xl rounded-xl p-2">      
               {
-              /* SE OCULTO ESTO POR EL BIEN DEL EQUIPO 
+              /* SE OCULTO ESTO POR EL BIEN DEL EQUIPO   iufivevr
               <NavLink
                 to="/perfil"
                 role="menuitem"

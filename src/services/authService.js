@@ -10,7 +10,6 @@ export async function loginUser(credentials) {
 
     const errorData = response.status !== 200 ? await response.json().catch(() => ({})) : null;
 
-    // Manejo personalizado de errores
     if (response.status === 400) {
       throw new Error("Las credenciales ingresadas no son válidas. Por favor, revisa los campos.");
     }
@@ -27,7 +26,7 @@ export async function loginUser(credentials) {
     }
 
     if (response.status === 403) {
-      throw new Error("Tu cuenta está inactiva. Por favor, contacta al administrador del sistema.");
+      throw new Error("Tu cuenta está inactiva. Contacta al administrador del sistema.");
     }
 
     if (!response.ok) {
@@ -36,7 +35,6 @@ export async function loginUser(credentials) {
 
     const data = await response.json();
 
-    // Guardar datos esenciales en localStorage
     localStorage.setItem("token", data.token);
     localStorage.setItem("email", data.email);
     localStorage.setItem("roles", JSON.stringify(data.roles));
@@ -44,10 +42,18 @@ export async function loginUser(credentials) {
 
     return data;
   } catch (error) {
-    // Si es un error genérico (por red, etc.)
-    throw new Error(error.message || "Error desconocido al iniciar sesión.");
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
+      throw new Error("No se pudo conectar con el servidor. Verifica tu conexión a internet.");
+    }
+
+    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+      throw new Error("Parece que no tienes conexión a internet. Intenta nuevamente cuando te conectes.");
+    }
+
+    throw new Error(error.message || "Ocurrió un error inesperado al iniciar sesión.");
   }
 }
+
 
 export function logoutUser() {
   localStorage.clear();

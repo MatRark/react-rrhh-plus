@@ -27,7 +27,7 @@ const CONTRACT_DESCRIPTIONS = {
 };
 
 /* ============================================================
-   COMPONENTE PRINCIPAL
+   COMPONENTE PRINCIPAL: Contratos (con vista por rol)
 ============================================================ */
 export default function Contratos() {
   const { roles } = getUserInfo();
@@ -41,7 +41,7 @@ export default function Contratos() {
 }
 
 /* ============================================================
-   VISTA EMPLEADO
+   VISTA PARA EMPLEADOS NORMALES
 ============================================================ */
 function EmployeeContractView() {
   const [contract, setContract] = useState(null);
@@ -67,10 +67,7 @@ function EmployeeContractView() {
   const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString("es-MX") : "—";
   const formatCurrency = (n) =>
-    new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(n || 0);
+    new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n || 0);
 
   // Obtener la descripción del contrato
   const getContractDescription = (tipoContrato) => {
@@ -81,10 +78,10 @@ function EmployeeContractView() {
     return (
       <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
         <div className="text-center">
-          <span className="material-symbols-outlined text-4xl text-blue-600 animate-spin">
-            progress_activity
+          <span className="material-symbols-outlined text-5xl text-blue-600 animate-spin">
+            refresh
           </span>
-          <p className="mt-2 text-slate-600 text-sm">Cargando tu contrato...</p>
+          <p className="mt-4 text-slate-600">Cargando tu contrato...</p>
         </div>
       </div>
     );
@@ -97,23 +94,17 @@ function EmployeeContractView() {
     return <NoContractView />;
 
   return (
-    <div className="min-h-screen bg-[#F5F7FB] text-slate-800 scroll-smooth">
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-y-auto max-h-[90vh]">
+    <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold mb-2">Mi Contrato</h1>
         <p className="text-slate-500 text-sm mb-8">
           Consulta la información de tu contrato vigente.
         </p>
 
         <div className="bg-white rounded-xl shadow border border-slate-200">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex flex-col sm:flex-row justify-between items-start rounded-t-xl gap-3">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex justify-between items-start rounded-t-xl">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="material-symbols-outlined text-3xl">
-                  description
-                </span>
-                <h2 className="text-2xl font-bold break-words">
-                  {contract.tipoContrato}
-                </h2>
                 <span className="material-symbols-outlined text-3xl">description</span>
                 <div>
                   <h2 className="text-2xl font-bold">{contract.tipoContrato}</h2>
@@ -122,9 +113,6 @@ function EmployeeContractView() {
                   </p>
                 </div>
               </div>
-              <p className="text-white/80">
-                Contrato ID: #{contract.contratoId}
-              </p>
             </div>
             <span
               className={`px-4 py-1 rounded-full font-semibold text-sm ${
@@ -139,37 +127,29 @@ function EmployeeContractView() {
           <div className="p-6 space-y-6">
             <section>
               <h3 className="text-sm font-semibold mb-3 text-slate-700 flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-600">
-                  event
-                </span>
+                <span className="material-symbols-outlined text-blue-600">event</span>
                 Periodo del Contrato
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-4 rounded-lg">
                   <p className="text-xs text-slate-500 mb-1">Inicio</p>
-                  <p className="text-lg font-semibold">
-                    {formatDate(contract.fechaInicio)}
-                  </p>
+                  <p className="text-lg font-semibold">{formatDate(contract.fechaInicio)}</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-lg">
                   <p className="text-xs text-slate-500 mb-1">Fin</p>
-                  <p className="text-lg font-semibold">
-                    {formatDate(contract.fechaFin)}
-                  </p>
+                  <p className="text-lg font-semibold">{formatDate(contract.fechaFin)}</p>
                 </div>
               </div>
             </section>
 
             <section>
               <h3 className="text-sm font-semibold mb-3 text-slate-700 flex items-center gap-2">
-                <span className="material-symbols-outlined text-green-600">
-                  payments
-                </span>
+                <span className="material-symbols-outlined text-green-600">payments</span>
                 Compensación
               </h3>
               <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
                 <p className="text-xs text-green-700 mb-1">Salario Base</p>
-                <p className="text-2xl font-bold text-green-800 break-words">
+                <p className="text-2xl font-bold text-green-800">
                   {formatCurrency(contract.salarioBase)}
                 </p>
                 <p className="text-xs text-green-600 mt-1">por mes</p>
@@ -179,12 +159,10 @@ function EmployeeContractView() {
             {contract.observaciones && (
               <section>
                 <h3 className="text-sm font-semibold mb-3 text-slate-700 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-slate-600">
-                    notes
-                  </span>
+                  <span className="material-symbols-outlined text-slate-600">notes</span>
                   Observaciones
                 </h3>
-                <div className="bg-slate-50 rounded-lg p-4 overflow-y-auto max-h-40">
+                <div className="bg-slate-50 rounded-lg p-4">
                   <p className="text-slate-700">{contract.observaciones}</p>
                 </div>
               </section>

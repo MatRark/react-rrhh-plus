@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from "react";
+import { registerAttendance, getAllAttendances } from "../services/attendanceService";
 
 export default function AttendanceRegistration() {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
+  const [todayRecord, setTodayRecord] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [infoMessage, setInfoMessage] = useState(null);
 
+  // 🕒 Actualiza hora y fecha en vivo
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-
       const options = {
         weekday: "long",
         day: "numeric",
@@ -27,6 +31,70 @@ export default function AttendanceRegistration() {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // 📅 Cargar registro del día actual
+  useEffect(() => {
+    loadTodayAttendance();
+  }, []);
+
+  const loadTodayAttendance = async () => {
+    try {
+      const data = await getAllAttendances();
+      const today = new Date().toISOString().split("T")[0];
+      const record = data.find((a) => a.fecha?.startsWith(today));
+      setTodayRecord(record || null);
+    } catch (err) {
+      console.error(err);
+      setTodayRecord(null);
+    }
+  };
+
+  // 🔘 Registrar entrada o salida
+  const handleRegister = async (tipoRegistro) => {
+    setLoading(true);
+    setInfoMessage(null);
+
+    try {
+      await registerAttendance(tipoRegistro);
+
+      if (tipoRegistro === "entrada") {
+        setInfoMessage(
+          "Has registrado tu entrada correctamente. ¡Buen día de trabajo!"
+        );
+      } else {
+        setInfoMessage(
+          "Has registrado tu salida correctamente. ¡Hasta luego!"
+        );
+      }
+
+      await loadTodayAttendance();
+    } catch (err) {
+      const msg = err.message || "";
+      if (msg.includes("Bad Request") || msg.includes("ya existe")) {
+        setInfoMessage("Ya registraste tu entrada hoy.");
+      } else if (msg.includes("token") || msg.includes("Unauthorized")) {
+        setInfoMessage("Tu sesión expiró. Inicia sesión nuevamente.");
+      } else {
+        setInfoMessage("Ocurrió un error al registrar la asistencia.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasEntrada = Boolean(todayRecord?.horaEntrada);
+  const hasSalida = Boolean(todayRecord?.horaSalida);
+
+  // 💬 Bloque informativo azul
+  const renderInfoBox = () => {
+    if (!infoMessage) return null;
+    return (
+      <div className="mt-6 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-700">
+        <span className="material-symbols-outlined text-[22px]">info</span>
+        <p className="text-sm font-medium leading-relaxed">{infoMessage}</p>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -48,24 +116,41 @@ export default function AttendanceRegistration() {
           </p>
         </div>
 
-        {/* Botones de entrada/salida */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <button className="flex flex-col items-center justify-center gap-4 px-6 py-8 rounded-lg bg-green-50 border-2 border-green-200 text-green-700 hover:bg-green-100 transition-all duration-300 transform hover:scale-105 shadow-sm">
+          {/* BOTÓN ENTRADA */}
+          <button
+            onClick={() => handleRegister("entrada")}
+            disabled={loading || hasEntrada}
+            className={`flex flex-col items-center justify-center gap-4 px-6 py-8 rounded-lg border-2 transition-all duration-300 transform shadow-sm ${
+              loading || hasEntrada
+                ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:scale-105"
+            }`}
+          >
             <span className="material-symbols-outlined text-5xl">login</span>
             <span className="text-xl font-semibold">Marcar Entrada</span>
           </button>
 
+          {/* BOTÓN SALIDA */}
           <button
-            className="flex flex-col items-center justify-center gap-4 px-6 py-8 rounded-lg bg-red-50 border-2 border-red-200 text-red-700 hover:bg-red-100 transition-all duration-300 transform hover:scale-105 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            disabled
+            onClick={() => handleRegister("salida")}
+            disabled={loading}
+            className={`flex flex-col items-center justify-center gap-4 px-6 py-8 rounded-lg border-2 transition-all duration-300 transform shadow-sm ${
+              loading
+                ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:scale-105"
+            }`}
           >
             <span className="material-symbols-outlined text-5xl">logout</span>
             <span className="text-xl font-semibold">Marcar Salida</span>
           </button>
         </div>
+
+        {/* Mensaje informativo azul */}
+        {renderInfoBox()}
       </div>
 
-      {/* Registro del día */}
+      {/*  Registro del día 
       <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
         <h3 className="text-lg font-semibold text-slate-800 mb-4">
           Registro del Día
@@ -77,23 +162,26 @@ export default function AttendanceRegistration() {
             </span>
             <div>
               <p className="text-sm">Última Entrada</p>
-              <p className="font-semibold text-lg text-slate-800">09:02 AM</p>
+              <p className="font-semibold text-lg text-slate-800">
+                {todayRecord?.horaEntrada || "--"}
+              </p>
             </div>
           </div>
 
           <div className="w-px h-10 bg-slate-200 hidden sm:block"></div>
 
-          <div className="flex items-center gap-3 opacity-60">
-            <span className="material-symbols-outlined text-slate-400 text-2xl">
-              highlight_off
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-red-500 text-2xl">
+              logout
             </span>
             <div>
               <p className="text-sm">Salida</p>
-              <p className="font-semibold text-lg text-slate-800">—</p>
+              <p className="font-semibold text-lg text-slate-800">
+                {todayRecord?.horaSalida || "--"}
+              </p>
             </div>
           </div>
-        </div>
-      </div>
+        </div>  */}
     </div>
   );
 }

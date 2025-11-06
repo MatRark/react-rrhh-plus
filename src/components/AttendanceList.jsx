@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { getAllAttendances } from "../services/attendanceService";
+import { getAllAttendances, updateAttendance } from "../services/attendanceService";
 
 export default function AttendanceList() {
   const [attendances, setAttendances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Estado del modal
+  const [showModal, setShowModal] = useState(false);
+  const [selectedAttendance, setSelectedAttendance] = useState(null);
+  const [formData, setFormData] = useState({
+    tipo: "entrada",
+    hora: "",
+    observaciones: "",
+  });
+  const [infoMessage, setInfoMessage] = useState("");
 
   // Filtros
   const [filters, setFilters] = useState({
@@ -17,26 +27,20 @@ export default function AttendanceList() {
     loadAttendances();
   }, []);
 
-  // Efecto para aplicar automáticamente cuando cambia el turno
   useEffect(() => {
-    if (filters.turnoId !== "") {
-      applyFilters();
-    }
-  }, [filters.turnoId]); // Se ejecuta cuando cambia turnoId
+    if (filters.turnoId !== "") applyFilters();
+  }, [filters.turnoId]);
 
   const loadAttendances = async (customFilters = null) => {
     setLoading(true);
     setError("");
     try {
-      // Usar los filtros personalizados si se proporcionan, sino usar el estado actual
       const filtersToUse = customFilters || filters;
-      
-      // Limpiar filtros vacíos antes de enviar
       const cleanFilters = {};
       if (filtersToUse.fechaDesde) cleanFilters.fechaDesde = filtersToUse.fechaDesde;
       if (filtersToUse.fechaHasta) cleanFilters.fechaHasta = filtersToUse.fechaHasta;
       if (filtersToUse.turnoId) cleanFilters.turnoId = filtersToUse.turnoId;
-      
+
       const data = await getAllAttendances(cleanFilters);
       setAttendances(data);
     } catch (err) {
@@ -46,33 +50,23 @@ export default function AttendanceList() {
     }
   };
 
-  const handleFilterChange = (field, value) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
-  };
+  const handleFilterChange = (field, value) => setFilters((prev) => ({ ...prev, [field]: value }));
 
-  const applyFilters = () => {
-    loadAttendances();
-  };
-
+  const applyFilters = () => loadAttendances();
   const clearFilters = () => {
-    const emptyFilters = { fechaDesde: "", fechaHasta: "", turnoId: "" };
-    setFilters(emptyFilters);
-    // Cargar las asistencias sin filtros inmediatamente
-    loadAttendances(emptyFilters);
+    const empty = { fechaDesde: "", fechaHasta: "", turnoId: "" };
+    setFilters(empty);
+    loadAttendances(empty);
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return "—";
-    // Evitar problemas de zona horaria parseando manualmente
     const [year, month, day] = dateString.split("T")[0].split("-");
     const date = new Date(year, month - 1, day);
     return date.toLocaleDateString("es-MX");
   };
 
-  const formatTime = (timeString) => {
-    if (!timeString) return "—";
-    return timeString.substring(0, 5); // HH:MM
-  };
+  const formatTime = (timeString) => (timeString ? timeString.substring(0, 5) : "—");
 
   const getStatusColor = (estado) => {
     const colors = {
@@ -84,62 +78,93 @@ export default function AttendanceList() {
     return colors[estado] || "bg-slate-100 text-slate-700";
   };
 
+  // Abrir modal
+  const handleEditClick = (attendance) => {
+    setSelectedAttendance(attendance);
+    setFormData({
+      tipo: "entrada",
+      hora: "",
+      observaciones: "",
+    });
+    setShowModal(true);
+  };
+
+  // Guardar cambios
+  const handleSaveCorrection = async () => {
+    if (!formData.hora || !formData.observaciones) {
+      //setInfoMessage("Por favor, completa todos los campos."); SI ES NECESARIO, DESCOMENTAR
+      return;
+    }
+
+    const data =
+      formData.tipo === "entrada"
+        ? { horaEntrada: formData.hora, observaciones: formData.observaciones }
+        : { horaSalida: formData.hora, observaciones: formData.observaciones };
+
+    try {
+      await updateAttendance(selectedAttendance.asistenciaId, data);
+      setInfoMessage("Asistencia actualizada correctamente.");
+      setShowModal(false);
+      await loadAttendances();
+    } catch (err) {
+      console.error(err);
+      setInfoMessage("Error al actualizar la asistencia.");
+    }
+  };
+
+  // Caja de mensajes
+  const renderInfoBox = () =>
+    infoMessage && (
+      <div className="mt-4 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-700">
+        <span className="material-symbols-outlined text-[22px]">info</span>
+        <p className="text-sm font-medium leading-relaxed">{infoMessage}</p>
+      </div>
+    );
+
   return (
     <div>
       {/* Filtros */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-slate-600">
-            filter_list
-          </span>
+          <span className="material-symbols-outlined text-slate-600">filter_list</span>
           <h3 className="font-semibold text-slate-800">Filtros</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Fecha Desde */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Fecha Desde
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Desde</label>
             <input
               type="date"
               value={filters.fechaDesde}
               onChange={(e) => handleFilterChange("fechaDesde", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          {/* Fecha Hasta */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Fecha Hasta
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Hasta</label>
             <input
               type="date"
               value={filters.fechaHasta}
               onChange={(e) => handleFilterChange("fechaHasta", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          {/* Turno */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Turno
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Turno</label>
             <select
               value={filters.turnoId}
               onChange={(e) => handleFilterChange("turnoId", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Todos los turnos</option>
+              <option value="">Todos</option>
               <option value="1">Matutino</option>
               <option value="2">Vespertino</option>
               <option value="3">Nocturno</option>
             </select>
           </div>
 
-          {/* Botones */}
           <div className="flex items-end gap-2">
             <button
               onClick={applyFilters}
@@ -157,8 +182,10 @@ export default function AttendanceList() {
         </div>
       </div>
 
-      {/* Resto del código permanece igual */}
+      {/* Tabla */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {renderInfoBox()}
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500">
@@ -179,27 +206,9 @@ export default function AttendanceList() {
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-slate-500">
                     <div className="flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined animate-spin">
-                        refresh
-                      </span>
+                      <span className="material-symbols-outlined animate-spin">refresh</span>
                       Cargando asistencias...
                     </div>
-                  </td>
-                </tr>
-              )}
-
-              {!loading && error && (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-red-600">
-                    {error}
-                  </td>
-                </tr>
-              )}
-
-              {!loading && !error && attendances.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500">
-                    No se encontraron registros de asistencia
                   </td>
                 </tr>
               )}
@@ -207,37 +216,12 @@ export default function AttendanceList() {
               {!loading &&
                 !error &&
                 attendances.map((att) => (
-                  <tr
-                    key={att.asistenciaId}
-                    className="hover:bg-slate-50 transition-colors"
-                  >
-                    <td className="py-3 px-4 font-medium text-slate-800">
-                      {att.nombreEmpleado}
-                    </td>
+                  <tr key={att.asistenciaId} className="hover:bg-slate-50 transition">
+                    <td className="py-3 px-4 font-medium text-slate-800">{att.nombreEmpleado}</td>
                     <td className="py-3 px-4 text-slate-600">{att.turno}</td>
-                    <td className="py-3 px-4 text-slate-600">
-                      {formatDate(att.fecha)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-green-600 text-[16px]">
-                          login
-                        </span>
-                        {formatTime(att.horaEntradaReal)}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {att.horaSalidaReal ? (
-                        <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-red-600 text-[16px]">
-                            logout
-                          </span>
-                          {formatTime(att.horaSalidaReal)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
+                    <td className="py-3 px-4 text-slate-600">{formatDate(att.fecha)}</td>
+                    <td className="py-3 px-4">{formatTime(att.horaEntradaReal)}</td>
+                    <td className="py-3 px-4">{formatTime(att.horaSalidaReal)}</td>
                     <td className="py-3 px-4">
                       {att.retardoMinutos > 0 ? (
                         <span className="text-red-600 font-medium">
@@ -257,46 +241,81 @@ export default function AttendanceList() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition"
-                          title="Ver detalles"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            visibility
-                          </span>
-                        </button>
-                        <button
-                          className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-orange-600 transition"
-                          title="Editar"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            edit
-                          </span>
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleEditClick(att)}
+                        className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-orange-600 transition"
+                        title="Corregir asistencia"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
             </tbody>
           </table>
         </div>
-
-        {/* Footer con información */}
-        {!loading && !error && attendances.length > 0 && (
-          <div className="p-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-600">
-            <span>
-              Total de registros: <b>{attendances.length}</b>
-            </span>
-            <button className="px-3 py-1 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">
-                download
-              </span>
-              Exportar
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* === MODAL === */}
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-[9999]">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">
+              Corregir asistencia de {selectedAttendance?.nombreEmpleado}
+            </h3>
+
+            <label className="block mb-3">
+              <span className="text-sm font-medium text-slate-600">Tipo de corrección</span>
+              <select
+                value={formData.tipo}
+                onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                className="mt-1 w-full border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="entrada">Entrada</option>
+                <option value="salida">Salida</option>
+              </select>
+            </label>
+
+            <label className="block mb-3">
+              <span className="text-sm font-medium text-slate-600">Nueva hora</span>
+              <input
+                type="time"
+                value={formData.hora}
+                onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
+                className="mt-1 w-full border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              />
+            </label>
+
+            <label className="block mb-3">
+              <span className="text-sm font-medium text-slate-600">Observaciones</span>
+              <textarea
+                rows="3"
+                value={formData.observaciones}
+                onChange={(e) =>
+                  setFormData({ ...formData, observaciones: e.target.value })
+                }
+                className="mt-1 w-full border border-slate-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="Ej. Corrección manual por olvido de marcar salida"
+              ></textarea>
+            </label>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 rounded-md border border-slate-300 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveCorrection}
+                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

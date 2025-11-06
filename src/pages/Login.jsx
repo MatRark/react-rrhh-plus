@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import "../styles/Login.css";
 import { loginUser } from "../services/authService";
+import SuccessModal from "../components/SuccessModal"; // Importa el nuevo componente
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -9,27 +9,15 @@ export default function Login() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [loginSuccess, setLoginSuccess] = useState(false);
-  const [countdown, setCountdown] = useState(3);
   const [loading, setLoading] = useState(false);
-  
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (loginSuccess && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (loginSuccess && countdown === 0) {
-      navigate("/home");
-    }
-  }, [loginSuccess, countdown, navigate]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (email.trim() === "" || password.trim() === "") {
-      setMessage("Completa todos los campos");
+      setMessage("Completa todos los campos.");
       setMessageType("error");
       return;
     }
@@ -50,46 +38,18 @@ export default function Login() {
     }
   };
 
-  // Pantalla de éxito
   if (loginSuccess) {
-    return (
-      <div className="success-container">
-        <div className="success-card">
-          <div className="success-content">
-            <div className="success-icon-wrapper">
-              <div className="success-icon-circle">
-                <span className="material-symbols-outlined success-icon">check</span>
-              </div>
-            </div>
-            <h1 className="success-title">¡Inicio de sesión exitoso!</h1>
-            <p className="success-description">
-              Bienvenido de nuevo. Serás redirigido al panel principal en unos segundos.
-            </p>
-            <div className="redirect-info">
-              <p className="redirect-label">Redirigiendo...</p>
-              <p className="redirect-countdown">{countdown} segundos restantes</p>
-            </div>
+    return <SuccessModal />;
 
-            {/* Barra de progreso */}
-            <div className="progress-bar-container">
-              <div
-                className="progress-bar"
-                style={{ width: `${((3 - countdown) / 3) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
-  // Pantalla normal de login
   return (
     <div className="login-container">
+      <div className="background-overlay"></div>
       <div className="login-card">
         <div className="login-header">
           <div className="login-icon">
-            <span className="material-symbols-outlined">apps</span>
+            <span className="material-symbols-outlined" style={{ fontSize: "3.5rem" }}>apps</span>
           </div>
           <h1 className="login-title">RRHH-PLUS</h1>
           <p className="login-subtitle">Bienvenido de nuevo, por favor inicia sesión.</p>
@@ -97,39 +57,37 @@ export default function Login() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           {message && (
-            <div
-              className={`message-box ${
-                messageType === "error" ? "message-error" : "message-success"
-              }`}
-            >
+            <div className={`message-box ${messageType === "error" ? "message-error" : "message-success"}`}>
               {message}
             </div>
           )}
 
           <div className="form-group">
             <label className="form-label">Correo Electrónico</label>
-            <input
-              type="email"
-              placeholder="Ingresa tu correo electrónico"
-              className={`form-input ${
-                messageType === "error" && email === "" ? "input-error" : ""
-              }`}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <div className="input-with-icon">
+              <span className="material-symbols-outlined input-icon">mail</span>
+              <input
+                type="email"
+                placeholder="Ingresa tu correo electrónico"
+                className={`form-input ${messageType === "error" && email === "" ? "input-error" : ""}`}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">Contraseña</label>
-            <input
-              type="password"
-              placeholder="Ingresa tu contraseña"
-              className={`form-input ${
-                messageType === "error" && password === "" ? "input-error" : ""
-              }`}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="input-with-icon">
+              <span className="material-symbols-outlined input-icon">lock</span>
+              <input
+                type="password"
+                placeholder="Ingresa tu contraseña"
+                className={`form-input ${messageType === "error" && password === "" ? "input-error" : ""}`}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>

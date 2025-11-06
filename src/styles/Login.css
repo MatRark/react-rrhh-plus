@@ -43,31 +43,72 @@
   /* Bordes */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
   
   /* Sombras */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
 
-/* Contenedor principal del login */
-.login-container {
+/* Contenedor principal del login con imagen de fondo */
+.login-container,
+.success-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--gray-50);
+  position: relative;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Card del login */
-.login-card {
+/* Imagen de fondo profesional para RRHH */
+.login-container::before,
+.success-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/image_login.avif');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.6; /* Reducida la opacidad de la imagen */
+  z-index: 1;
+}
+
+/* Overlay para mejorar legibilidad - MÁS OSCURO */
+.background-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(2, 132, 199, 0.3) 0%,
+    rgba(3, 105, 161, 0.4) 50%,
+    rgba(14, 165, 233, 0.3) 100%
+  );
+  z-index: 2;
+}
+
+/* Card del login - MÁS SÓLIDO */
+.login-card,
+.success-card {
   width: 100%;
   max-width: 400px;
-  background: white;
-  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.98); /* Más opaco */
+  backdrop-filter: blur(8px); /* Menos blur */
+  border-radius: var(--radius-lg);
   padding: var(--space-8);
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  position: relative;
+  z-index: 3;
+  margin: var(--space-4);
 }
 
 /* Header del login */
@@ -89,12 +130,14 @@
   font-weight: 700;
   color: var(--gray-900);
   margin: 0 0 var(--space-2) 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Sombra sutil para mejor legibilidad */
 }
 
 .login-subtitle {
   font-size: var(--text-sm);
-  color: var(--gray-500);
+  color: var(--gray-700); /* Color más oscuro */
   margin: 0;
+  font-weight: 500;
 }
 
 /* Formulario */
@@ -111,59 +154,67 @@
 .form-label {
   display: block;
   margin-bottom: var(--space-2);
-  font-weight: 500;
+  font-weight: 600; /* Más negrita */
   font-size: var(--text-sm);
-  color: var(--gray-700);
+  color: var(--gray-800); /* Más oscuro */
 }
 
 .form-input {
   width: 100%;
   padding: var(--space-3);
   border: 1px solid var(--gray-300);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   font-size: var(--text-base);
   color: var(--gray-900);
   transition: all 0.2s ease-in-out;
   line-height: 1.5;
+  background: rgba(255, 255, 255, 0.95); /* Más sólido */
+  font-weight: 500;
 }
 
 .form-input::placeholder {
-  color: var(--gray-400);
+  color: var(--gray-500);
+  font-weight: 400;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgb(14 165 233 / 0.1);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  background: white;
 }
 
 .form-input.input-error {
   border-color: var(--error-500);
+  background: rgba(239, 68, 68, 0.02);
 }
 
 .form-input.input-error:focus {
-  box-shadow: 0 0 0 3px rgb(239 68 68 / 0.1);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 /* Mensajes de error/éxito */
 .message-box {
   padding: var(--space-3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   font-size: var(--text-sm);
   margin-bottom: var(--space-4);
   animation: slideIn 0.3s ease-out;
+  background: white; /* Fondo sólido */
+  border: 1px solid;
+  font-weight: 500;
 }
 
 .message-error {
-  background-color: rgba(239, 68, 68, 0.1);
+  background-color: rgba(239, 68, 68, 0.05);
   color: var(--error-500);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 .message-success {
-  background-color: rgba(16, 185, 129, 0.1);
+  background-color: rgba(16, 185, 129, 0.05);
   color: var(--success-500);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.2);
 }
 
 /* Botón primario */
@@ -172,16 +223,19 @@
   background: var(--primary-500);
   color: white;
   padding: var(--space-3) var(--space-5);
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
   font-size: var(--text-base);
   border: none;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
+  margin-top: var(--space-2);
 }
 
 .btn-primary:hover {
   background: var(--primary-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-primary:active {
@@ -197,27 +251,10 @@
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 /* Pantalla de éxito */
-.success-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--gray-50);
-}
-
-.success-card {
-  width: 100%;
-  max-width: 400px;
-  background: white;
-  border-radius: var(--radius-md);
-  padding: var(--space-8);
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--gray-200);
-}
-
 .success-content {
   text-align: center;
 }
@@ -255,6 +292,7 @@
   color: var(--gray-700);
   margin: 0 0 var(--space-5) 0;
   line-height: 1.5;
+  font-weight: 500;
 }
 
 .redirect-info {
@@ -265,6 +303,7 @@
   font-size: var(--text-sm);
   color: var(--gray-600);
   margin: 0;
+  font-weight: 500;
 }
 
 .redirect-countdown {
@@ -290,6 +329,31 @@
   transition: width 1s linear;
 }
 
+/* Inputs con íconos */
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--gray-500);
+  font-size: 1.25rem;
+  z-index: 1;
+}
+
+.input-with-icon .form-input {
+  padding-left: 2.5rem;
+  border-radius: var(--radius-lg);
+}
+
+/* Logo más grande */
+.login-icon .material-symbols-outlined {
+  font-size: 3.5rem;
+}
+
 /* Animaciones */
 @keyframes slideIn {
   from {
@@ -308,10 +372,318 @@
   .success-card {
     margin: var(--space-4);
     padding: var(--space-6);
+    background: rgba(255, 255, 255, 0.98); /* Mantener sólido en móvil */
   }
   
   .login-title,
   .success-title {
     font-size: var(--text-xl);
   }
+  
+  .login-container::before,
+  .success-container::before {
+    opacity: 0.5; /* Menos opacidad en móvil */
+  }
+}
+
+/* Mejora para dispositivos muy pequeños */
+@media (max-width: 380px) {
+  .login-card,
+  .success-card {
+    margin: var(--space-2);
+    padding: var(--space-4);
+  }
+}
+
+/* Efectos de hover mejorados para inputs */
+.form-input:hover {
+  border-color: var(--gray-400);
+  background: white;
+}
+
+/* Mejora de contraste para textos importantes */
+.login-title,
+.form-label,
+.success-title {
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+/* Success Modal Styles - Sin opacidad para mejor legibilidad */
+.success-modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.success-modal-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.success-modal-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/image_login.avif');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.7;
+  z-index: 1;
+}
+
+.success-modal-background .background-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(2, 132, 199, 0.4) 0%,
+    rgba(3, 105, 161, 0.5) 50%,
+    rgba(14, 165, 233, 0.4) 100%
+  );
+  z-index: 2;
+}
+
+.success-modal {
+  position: relative;
+  background: #ffffff; /* Fondo completamente sólido */
+  border-radius: 24px;
+  padding: 3rem 2rem 2rem;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  animation: modalSlideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid #e5e7eb;
+  z-index: 3;
+  /* Eliminamos backdrop-filter y cualquier transparencia */
+}
+
+.success-animation {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.success-circle {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: circlePop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+}
+
+.success-checkmark {
+  color: white;
+  font-size: 2.5rem;
+  font-weight: bold;
+  animation: checkmarkScale 0.3s 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.success-confetti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 16px;
+  background: linear-gradient(45deg, #10b981, #059669, #047857);
+  opacity: 0;
+  animation: confettiRain 1s 0.5s ease-out forwards;
+}
+
+.confetti-piece:nth-child(1) {
+  left: 10%;
+  animation-delay: 0.5s;
+  background: linear-gradient(45deg, #10b981, #059669);
+}
+.confetti-piece:nth-child(2) {
+  left: 20%;
+  animation-delay: 0.6s;
+  background: linear-gradient(45deg, #059669, #047857);
+}
+.confetti-piece:nth-child(3) {
+  left: 30%;
+  animation-delay: 0.7s;
+  background: linear-gradient(45deg, #10b981, #059669);
+}
+.confetti-piece:nth-child(4) {
+  left: 40%;
+  animation-delay: 0.8s;
+  background: linear-gradient(45deg, #059669, #047857);
+}
+.confetti-piece:nth-child(5) {
+  left: 50%;
+  animation-delay: 0.9s;
+  background: linear-gradient(45deg, #10b981, #059669);
+}
+.confetti-piece:nth-child(6) {
+  left: 60%;
+  animation-delay: 1s;
+  background: linear-gradient(45deg, #059669, #047857);
+}
+.confetti-piece:nth-child(7) {
+  left: 70%;
+  animation-delay: 1.1s;
+  background: linear-gradient(45deg, #10b981, #059669);
+}
+.confetti-piece:nth-child(8) {
+  left: 80%;
+  animation-delay: 1.2s;
+  background: linear-gradient(45deg, #059669, #047857);
+}
+.confetti-piece:nth-child(9) {
+  left: 90%;
+  animation-delay: 1.3s;
+  background: linear-gradient(45deg, #10b981, #059669);
+}
+.confetti-piece:nth-child(10) {
+  left: 95%;
+  animation-delay: 1.4s;
+  background: linear-gradient(45deg, #059669, #047857);
+}
+
+.success-content {
+  animation: contentFadeIn 0.5s 0.8s both;
+}
+
+.success-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #047857;
+  margin: 0 0 1rem 0;
+  line-height: 1.2;
+  text-shadow: none; /* Eliminamos cualquier sombra que pueda afectar legibilidad */
+}
+
+.success-message {
+  color: #4b5563; /* Color más oscuro para mejor contraste */
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Animations */
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes circlePop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes checkmarkScale {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes confettiRain {
+  0% {
+    opacity: 0;
+    transform: translateY(-100px) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100px) rotate(360deg);
+  }
+}
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .success-modal {
+    padding: 2.5rem 1.5rem 1.5rem;
+    margin: 1rem;
+    background: #ffffff; /* Mantener sólido en móvil */
+  }
+  
+  .success-circle {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .success-checkmark {
+    font-size: 2rem;
+  }
+  
+  .success-title {
+    font-size: 1.5rem;
+  }
+  
+  .success-message {
+    font-size: 0.9rem;
+    color: #4b5563; /* Mantener contraste en móvil */
+  }
+  
+  .success-modal-background::before {
+    opacity: 0.6;
+  }
+}
+
+/* Elimina cualquier regla duplicada o conflictiva */
+.success-modal-backdrop {
+  display: none; /* Ocultamos el backdrop anterior si existe */
 }

@@ -387,7 +387,7 @@ function AdminContractView() {
                         </span>
                       </button>
 
-                      {/* ♻️ Renovar */}
+                      {/* ♻ Renovar */}
                       <button
                         title={
                           c.tipoContrato?.toLowerCase() === "determinado"

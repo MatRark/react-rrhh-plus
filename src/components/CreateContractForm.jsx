@@ -1,15 +1,21 @@
-import { useState, useEffect } from "react";
-import { getAvailableEmployees, getContractTypes, createContract } from "../services/contractService";
+import { useState, useEffect, useMemo } from "react";
+import {
+  getAvailableEmployees,
+  getContractTypes,
+  createContract,
+  updateContract,
+  getContractById,
+  renewContract,
+} from "../services/contractService";
 
 // Campo de formulario reutilizable
 function FormField({ label, required, error, icon, children, className = "", ...props }) {
   const isSelect = props.as === "select";
   const isTextarea = props.as === "textarea";
   const FieldTag = isSelect ? "select" : isTextarea ? "textarea" : "input";
-  
-  const base = `w-full ${icon ? "pl-10" : "pl-3"} pr-3 py-2 rounded-xl border bg-white focus:outline-none focus:ring-2 ${
-    error ? "border-red-300 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"
-  }`;
+
+  const base = `w-full ${icon ? "pl-10" : "pl-3"} pr-3 py-2 rounded-xl border bg-white focus:outline-none focus:ring-2 ${error ? "border-red-300 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"
+    }`;
 
   return (
     <label className="block">
@@ -34,231 +40,343 @@ function FormField({ label, required, error, icon, children, className = "", ...
   );
 }
 
-export default function CreateContractForm({ onClose, onContractCreated }) {
+/**
+ * Props:
+ * - mode: "create" | "edit" | "renew"
+ * - contractId?: number
+ * - contractType?: string  // opcional; el form ahora resuelve el tipo desde contractId
+ * - onClose: () => void
+ * - onSuccess: (result) => void
+ * - onContractCreated?: (result) => void
+ */
+export default function CreateContractForm({
+  mode = "create",
+  contractId,
+  contractType, // opcional; fallback
+  onClose,
+  onSuccess,
+  onContractCreated,
+}) {
   const [formData, setFormData] = useState({
     empleadoId: "",
     tipoContratoId: "",
     fechaInicio: "",
     fechaFin: "",
     salarioBase: "",
-    observaciones: ""
+    observaciones: "",
   });
-  
+
+  const [renewData, setRenewData] = useState({
+    fechaRenovacion: new Date().toISOString().substring(0, 10),
+    nuevaFechaFin: "",
+    comentario: "",
+  });
+
   const [availableEmployees, setAvailableEmployees] = useState([]);
   const [contractTypes, setContractTypes] = useState([]);
+
+  const [resolvedTypeName, setResolvedTypeName] = useState(""); // <- tipo detectado por contractId
+  const [resolvedTypeId, setResolvedTypeId] = useState(null);    // <- id detectado por contractId
+
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
-  // Cargar datos iniciales
+  // ------------------------------------------------------------
+  // Carga inicial (empleados, tipos, y contrato si edit/renew)
+  // ------------------------------------------------------------
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    const load = async () => {
+      setLoading(true);
+      try {
+        // En crear, sí necesitas empleados y tipos; en editar/renovar también para mapa id->nombre
+        const [employees, types] = await Promise.all([
+          getAvailableEmployees().catch(() => []),
+          getContractTypes().catch(() => []),
+        ]);
+        setAvailableEmployees(employees || []);
+        setContractTypes(types || []);
 
-  const loadInitialData = async () => {
-    setLoading(true);
-    try {
-      const [employeesData, typesData] = await Promise.all([
-        getAvailableEmployees(),
-        getContractTypes()
-      ]);
-      
-      setAvailableEmployees(employeesData);
-      setContractTypes(typesData);
-    } catch (error) {
-      setMessage(`Error: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+        if ((mode === "edit" || mode === "renew") && contractId) {
+          const c = await getContractById(contractId);
 
-  // Verificar si el tipo de contrato requiere fecha de fin
-  const requiresEndDate = () => {
-    if (!formData.tipoContratoId) return true;
-    
-    const selectedType = contractTypes.find(
-      type => type.tipoContratoId === parseInt(formData.tipoContratoId)
-    );
-    
-    if (!selectedType) return true;
-    
-    const nombreContrato = selectedType.nombreContrato.toLowerCase();
-    
-    // Los tipos "Indeterminado" y "Honorarios" NO requieren fecha de fin
-    return !nombreContrato.includes("indeterminado") && !nombreContrato.includes("honorarios");
-  };
+          // Rellenar cuando se edita
+          if (mode === "edit") {
+            setFormData({
+              empleadoId: c.empleadoId ?? "",
+              tipoContratoId: c.tipoContratoId ?? "",
+              fechaInicio: c.fechaInicio?.substring(0, 10) ?? "",
+              fechaFin: c.fechaFin?.substring(0, 10) ?? "",
+              salarioBase: c.salarioBase ?? "",
+              observaciones: c.observaciones ?? "",
+            });
+          }
 
-  // Validaciones
-  const validateForm = () => {
-    const newErrors = {};
+          // Resolver tipo (nombre + id) para usarlo en TODA la lógica
+          // Intenta obtenerlo del propio contrato; si no, usa el prop como fallback
+          const detectedName =
+            (c.tipoContratoNombre || c.tipoContrato || "").toString().trim() ||
+            (contractType || "");
+          const detectedId = c.tipoContratoId ?? null;
 
-    if (!formData.empleadoId) newErrors.empleadoId = "Selecciona un empleado";
-    if (!formData.tipoContratoId) newErrors.tipoContratoId = "Selecciona un tipo de contrato";
-    if (!formData.fechaInicio) newErrors.fechaInicio = "La fecha de inicio es requerida";
-    
-    // Validar fecha de fin solo si el tipo de contrato lo requiere
-    const needsEndDate = requiresEndDate();
-    if (needsEndDate && !formData.fechaFin) {
-      newErrors.fechaFin = "La fecha de fin es requerida para este tipo de contrato";
-    }
-    
-    // Validar que fecha fin sea posterior a fecha inicio (solo si ambas están presentes)
-    if (formData.fechaInicio && formData.fechaFin) {
-      const inicio = new Date(formData.fechaInicio);
-      const fin = new Date(formData.fechaFin);
-      if (fin <= inicio) {
-        newErrors.fechaFin = "La fecha de fin debe ser posterior a la fecha de inicio";
+          setResolvedTypeName(detectedName);
+          setResolvedTypeId(detectedId);
+
+          // Si venimos a renovar y el backend no da tipoContratoId,
+          // intenta inferirlo contra el catálogo de tipos por nombre:
+          if (!detectedId && types?.length && detectedName) {
+            const match = types.find(
+              (t) => t.nombreContrato?.toLowerCase().trim() === detectedName.toLowerCase().trim()
+            );
+            if (match) {
+              setResolvedTypeId(match.tipoContratoId);
+            }
+          }
+        } else {
+          // En crear, todavía no hay tipo resuelto
+          setResolvedTypeName("");
+          setResolvedTypeId(null);
+        }
+      } catch (e) {
+        setMessage(`Error: ${e.message}`);
+      } finally {
+        setLoading(false);
       }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, contractId]);
+
+  // ------------------------------------------------------------
+  // Helpers de tipo y reglas de negocio
+  // ------------------------------------------------------------
+  // Tipo elegido por el usuario (en crear/editar) o resuelto por contrato
+  const currentTypeId = useMemo(() => {
+    // prioriza lo seleccionado en el form; si no hay, usa lo detectado
+    const idFromForm = parseInt(formData.tipoContratoId);
+    return Number.isFinite(idFromForm) && idFromForm > 0 ? idFromForm : resolvedTypeId;
+  }, [formData.tipoContratoId, resolvedTypeId]);
+
+  const currentTypeName = useMemo(() => {
+    // si hay selección en el form, tradúcela a nombre; si no, usa resolvedTypeName
+    if (currentTypeId && contractTypes?.length) {
+      const t = contractTypes.find((x) => x.tipoContratoId === currentTypeId);
+      if (t?.nombreContrato) return t.nombreContrato;
+    }
+    return resolvedTypeName || contractType || ""; // último fallback
+  }, [currentTypeId, contractTypes, resolvedTypeName, contractType]);
+
+  const isDeterminado = useMemo(
+    () => currentTypeName?.toLowerCase().trim() === "determinado",
+    [currentTypeName]
+  );
+  const isIndeterminado = useMemo(
+    () => currentTypeName?.toLowerCase().trim() === "indeterminado",
+    [currentTypeName]
+  );
+  const isHonorarios = useMemo(
+    () => currentTypeName?.toLowerCase().trim() === "honorarios",
+    [currentTypeName]
+  );
+
+  const requiresEndDate = () => isDeterminado;
+  const isIndefinidoOrHonorarios = () => isIndeterminado || isHonorarios;
+
+  // ------------------------------------------------------------
+  // Validaciones
+  // ------------------------------------------------------------
+  const validateForm = () => {
+    const errs = {};
+    if (mode === "create" && !formData.empleadoId)
+      errs.empleadoId = "Selecciona un empleado";
+    if (!currentTypeId)
+      errs.tipoContratoId = "Selecciona un tipo de contrato";
+    if (!formData.fechaInicio)
+      errs.fechaInicio = "La fecha de inicio es requerida";
+
+    if (requiresEndDate() && !formData.fechaFin)
+      errs.fechaFin = "La fecha de fin es requerida para contratos determinados";
+
+    if (formData.fechaInicio && formData.fechaFin && requiresEndDate()) {
+      const i = new Date(formData.fechaInicio);
+      const f = new Date(formData.fechaFin);
+      if (f <= i)
+        errs.fechaFin = "La fecha de fin debe ser posterior a la fecha de inicio";
     }
 
-    if (!formData.salarioBase || formData.salarioBase <= 0) {
-      newErrors.salarioBase = "El salario debe ser un valor positivo";
-    }
+    if (!formData.salarioBase || Number(formData.salarioBase) <= 0)
+      errs.salarioBase = "El salario debe ser un valor positivo";
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  // Manejar cambios en el formulario
+  const validateRenew = () => {
+    const errs = {};
+    if (!renewData.fechaRenovacion)
+      errs.fechaRenovacion = "La fecha de renovación es requerida";
+
+    if (isDeterminado && !renewData.nuevaFechaFin)
+      errs.nuevaFechaFin = "La nueva fecha de fin es requerida para contratos determinados";
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // ------------------------------------------------------------
+  // Handlers
+  // ------------------------------------------------------------
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Limpiar error del campo cuando el usuario empiece a escribir
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ""
-      }));
-    }
-    
-    // Si cambia el tipo de contrato, limpiar el error de fecha fin
-    if (name === "tipoContratoId") {
-      setErrors(prev => ({
-        ...prev,
-        fechaFin: ""
-      }));
-    }
+    setFormData((p) => ({ ...p, [name]: value }));
+    if (errors[name]) setErrors((p) => ({ ...p, [name]: "" }));
   };
 
-  // Enviar formulario
+  const handleRenewChange = (e) => {
+    const { name, value } = e.target;
+    setRenewData((p) => ({ ...p, [name]: value }));
+    if (errors[name]) setErrors((p) => ({ ...p, [name]: "" }));
+  };
+
+  // ------------------------------------------------------------
+  // Envío
+  // ------------------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
-
-    setSubmitting(true);
     setMessage("");
-
+    setSubmitting(true);
     try {
-      const contractData = {
-        empleadoId: parseInt(formData.empleadoId),
-        tipoContratoId: parseInt(formData.tipoContratoId),
+      // ---------- RENOVAR ----------
+      if (mode === "renew") {
+        if (!validateRenew()) return;
+
+        // Para Determinado: el backend debe actualizar inicio=fechaRenovacion y fin=nuevaFechaFin (según tus reglas)
+        // Para Indeterminado/Honorarios: solo registrar la renovación (sin fecha fin)
+        const payload = {
+          fechaRenovacion: renewData.fechaRenovacion,
+          nuevaFechaFin: isDeterminado
+            ? renewData.nuevaFechaFin
+            : renewData.fechaRenovacion, // 🔹 clave para renovar honorarios / indeterminados
+          comentario: renewData.comentario || "",
+        };
+
+
+        const res = await renewContract(contractId, payload);
+        setMessage("¡Contrato renovado exitosamente!");
+        setTimeout(() => {
+          onSuccess && onSuccess(res);
+          onClose && onClose();
+        }, 800);
+        return;
+      }
+
+      // ---------- CREAR / EDITAR ----------
+      if (!validateForm()) return;
+
+      const data = {
+        tipoContratoId: currentTypeId,                          // <- siempre el ID vigente
         fechaInicio: formData.fechaInicio,
-        salarioBase: parseFloat(formData.salarioBase)
+        salarioBase: parseFloat(formData.salarioBase),
+        observaciones: formData.observaciones || "",
       };
 
-      // Solo incluir fechaFin si tiene valor
-      if (formData.fechaFin) {
-        contractData.fechaFin = formData.fechaFin;
+      // Solo enviar fechaFin si es Determinado
+      if (requiresEndDate() && formData.fechaFin) {
+        data.fechaFin = formData.fechaFin;
       }
 
-      // Solo incluir observaciones si tiene valor
-      if (formData.observaciones) {
-        contractData.observaciones = formData.observaciones;
+      // Limpiar fecha fin para indeterminado/honorarios (evita "1/1/1")
+      if (isIndefinidoOrHonorarios()) {
+        data.fechaFin = null;
       }
 
-      const result = await createContract(contractData);
-      
-      setMessage("¡Contrato creado exitosamente!");
-      
-      // Notificar al componente padre y cerrar después de un momento
+      if (mode === "create") data.empleadoId = parseInt(formData.empleadoId);
+
+      const res =
+        mode === "create"
+          ? await createContract(data)
+          : await updateContract(contractId, data);
+
+      setMessage(
+        mode === "create"
+          ? "¡Contrato creado exitosamente!"
+          : "¡Contrato actualizado exitosamente!"
+      );
+
       setTimeout(() => {
-        if (onContractCreated) onContractCreated(result);
-        if (onClose) onClose();
-      }, 1500);
-
-    } catch (error) {
-      setMessage(`Error: ${error.message}`);
+        onSuccess && onSuccess(res);
+        onContractCreated && onContractCreated(res);
+        onClose && onClose();
+      }, 1000);
+    } catch (err) {
+      setMessage(`Error: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
+  // ------------------------------------------------------------
+  // UI helpers
+  // ------------------------------------------------------------
+  const title =
+    mode === "create" ? "Nuevo Contrato" :
+      mode === "edit" ? "Editar Contrato" :
+        "Renovar Contrato";
+
+  const subtitle =
+    mode === "create" ? "Completa la información del contrato" :
+      mode === "edit" ? "Actualiza los datos del contrato" :
+        "Registra una renovación para este contrato";
+
+  if (loading)
     return (
-      <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-        <aside className="absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-white shadow-2xl flex items-center justify-center">
-          <div className="text-center">
-            <span className="material-symbols-outlined text-5xl text-blue-600 animate-spin">refresh</span>
-            <p className="mt-4 text-slate-600">Cargando datos...</p>
-          </div>
-        </aside>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="bg-white rounded-xl shadow-xl p-6 flex items-center gap-3">
+          <span className="material-symbols-outlined animate-spin text-blue-600">
+            progress_activity
+          </span>
+          <span>Cargando...</span>
+        </div>
       </div>
     );
-  }
-
-  const endDateRequired = requiresEndDate();
-  const selectedType = contractTypes.find(
-    type => type.tipoContratoId === parseInt(formData.tipoContratoId)
-  );
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* Backdrop/Overlay */}
-      <div className="absolute inset-0 bg-black/40 transition-opacity" onClick={onClose} />
-      
-      {/* Side Sheet */}
-      <aside 
-        className="absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-white shadow-2xl animate-slide-in"
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <aside
+        className="absolute right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl animate-slide-in"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header con gradiente */}
-        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-3xl">description</span>
-            <div>
-              <h2 className="text-lg font-semibold">Nuevo Contrato</h2>
-              <p className="text-white/80 text-sm">Completa la información del contrato</p>
-            </div>
+        {/* Header */}
+        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-5 flex justify-between items-center">
+          <div>
+            <h2 className="text-lg font-semibold">{title}</h2>
+            <p className="text-white/80 text-sm">{subtitle}</p>
           </div>
-          <button 
-            className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
-            onClick={onClose}
-            aria-label="Cerrar"
-          >
+          <button onClick={onClose} className="p-2 bg-white/20 hover:bg-white/30 rounded-lg">
             <span className="material-symbols-outlined">close</span>
           </button>
         </header>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="h-[calc(100%-7rem)] flex flex-col">
-          <div className="flex-1 overflow-y-auto p-5 space-y-6">
-            {message && (
-              <div className={`rounded-lg border px-4 py-3 text-sm ${
-                message.includes("Error") 
-                  ? "bg-red-50 border-red-200 text-red-700" 
-                  : "bg-green-50 border-green-200 text-green-700"
-              }`}>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px]">
-                    {message.includes("Error") ? "error" : "check_circle"}
-                  </span>
-                  {message}
-                </div>
-              </div>
-            )}
+        {/* Mensaje */}
+        {message && (
+          <div
+            className={`mx-5 my-4 rounded-lg border px-4 py-3 text-sm ${message.includes("Error")
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-green-50 border-green-200 text-green-700"
+              }`}
+          >
+            {message}
+          </div>
+        )}
 
-            {/* Sección: Información del Contrato */}
-            <section>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Información del Contrato</h3>
-              <div className="space-y-4">
-                {/* Empleado */}
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto h-[calc(100%-8rem)]">
+          {mode !== "renew" ? (
+            <>
+              {/* Empleado solo en crear */}
+              {mode === "create" && (
                 <FormField
                   as="select"
                   label="Empleado"
@@ -270,51 +388,47 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
                   error={errors.empleadoId}
                 >
                   <option value="">Selecciona un empleado</option>
-                  {availableEmployees.map(emp => (
+                  {availableEmployees.map((emp) => (
                     <option key={emp.empleadoId} value={emp.empleadoId}>
                       {emp.nombreEmpleado} - {emp.puesto} ({emp.area})
                     </option>
                   ))}
                 </FormField>
+              )}
 
-                {/* Tipo de Contrato */}
-                <FormField
-                  as="select"
-                  label="Tipo de Contrato"
-                  required
-                  icon="assignment"
-                  name="tipoContratoId"
-                  value={formData.tipoContratoId}
-                  onChange={handleChange}
-                  error={errors.tipoContratoId}
-                >
-                  <option value="">Selecciona un tipo de contrato</option>
-                  {contractTypes.map(type => (
-                    <option key={type.tipoContratoId} value={type.tipoContratoId}>
-                      {type.nombreContrato}
-                    </option>
-                  ))}
-                </FormField>
-              </div>
-            </section>
+              {/* Tipo de contrato (si estás editando puedes permitir cambiarlo o bloquearlo según negocio) */}
+              <FormField
+                as="select"
+                label="Tipo de Contrato"
+                required
+                icon="assignment"
+                name="tipoContratoId"
+                value={formData.tipoContratoId || currentTypeId || ""}
+                onChange={handleChange}
+                error={errors.tipoContratoId}
+              >
+                <option value="">Selecciona un tipo de contrato</option>
+                {contractTypes.map((t) => (
+                  <option key={t.tipoContratoId} value={t.tipoContratoId}>
+                    {t.nombreContrato}
+                  </option>
+                ))}
+              </FormField>
 
-            {/* Sección: Fechas */}
-            <section>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Periodo del Contrato</h3>
-              
-              {/* Mensaje informativo para contratos Indeterminados u Honorarios */}
-              {selectedType && !endDateRequired && (
-                <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+              {/* Aviso para contratos sin fecha fin */}
+              {isIndefinidoOrHonorarios() && (
+                <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
                   <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined text-[20px] mt-0.5">info</span>
+                    <span className="material-symbols-outlined mt-0.5 text-[20px]">info</span>
                     <p>
-                      Para contratos de tipo <strong>{selectedType.nombreContrato}</strong>, 
-                      la fecha de fin es opcional. Puedes dejarla vacía si el contrato no tiene una fecha de término definida.
+                      Este tipo de contrato (<strong>{currentTypeName || "—"}</strong>) no tiene fecha de término.
+                      La fecha de fin se omitirá automáticamente.
                     </p>
                   </div>
                 </div>
               )}
-              
+
+              {/* Fechas */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   label="Fecha de Inicio"
@@ -327,40 +441,34 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
                   error={errors.fechaInicio}
                 />
 
-                <FormField
-                  label="Fecha de Fin"
-                  required={endDateRequired}
-                  icon="event"
-                  type="date"
-                  name="fechaFin"
-                  value={formData.fechaFin}
-                  onChange={handleChange}
-                  error={errors.fechaFin}
-                />
+                {/* Solo mostrar fin si aplica */}
+                {requiresEndDate() && (
+                  <FormField
+                    label="Fecha de Fin"
+                    required
+                    icon="event"
+                    type="date"
+                    name="fechaFin"
+                    value={formData.fechaFin}
+                    onChange={handleChange}
+                    error={errors.fechaFin}
+                  />
+                )}
               </div>
-            </section>
 
-            {/* Sección: Salario */}
-            <section>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Compensación</h3>
               <FormField
                 label="Salario Base"
                 required
                 icon="payments"
                 type="number"
-                step="0.01"
                 min="0"
+                step="0.01"
                 name="salarioBase"
                 value={formData.salarioBase}
                 onChange={handleChange}
-                placeholder="0.00"
                 error={errors.salarioBase}
               />
-            </section>
 
-            {/* Sección: Observaciones */}
-            <section>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Observaciones</h3>
               <FormField
                 as="textarea"
                 label="Observaciones"
@@ -368,19 +476,72 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
                 name="observaciones"
                 value={formData.observaciones}
                 onChange={handleChange}
-                rows="4"
-                placeholder="Observaciones adicionales sobre el contrato..."
-                className="resize-none"
+                rows="3"
               />
-            </section>
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Renovación */}
+              <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <div className="flex items-start gap-2">
+                  <span className="material-symbols-outlined mt-0.5 text-[20px]">info</span>
+                  <p>
+                    Tipo de contrato: <strong>{currentTypeName || "—"}</strong>
+                  </p>
+                </div>
+              </div>
 
-          {/* Footer con botones */}
-          <div className="sticky bottom-0 border-t bg-white p-4 flex items-center justify-end gap-2">
+              <FormField
+                label="Fecha de Renovación"
+                required
+                icon="event"
+                type="date"
+                name="fechaRenovacion"
+                value={renewData.fechaRenovacion}
+                onChange={handleRenewChange}
+                error={errors.fechaRenovacion}
+              />
+
+              {isDeterminado ? (
+                <FormField
+                  label="Nueva Fecha de Fin"
+                  required
+                  icon="event"
+                  type="date"
+                  name="nuevaFechaFin"
+                  value={renewData.nuevaFechaFin}
+                  onChange={handleRenewChange}
+                  error={errors.nuevaFechaFin}
+                />
+              ) : (
+                <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined mt-0.5 text-[20px]">info</span>
+                    <p>
+                      Este tipo de contrato no tiene fecha de fin.
+                      Solo se registrará la renovación con la nueva fecha de renovación.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <FormField
+                as="textarea"
+                label="Comentario"
+                icon="notes"
+                name="comentario"
+                value={renewData.comentario}
+                onChange={handleRenewChange}
+                rows="3"
+              />
+            </>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 border rounded-lg hover:bg-slate-50"
               disabled={submitting}
             >
               Cancelar
@@ -388,14 +549,23 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
             <button
               type="submit"
               disabled={submitting}
-              className={`px-4 py-2 rounded-lg text-white inline-flex items-center gap-2 transition-colors ${
-                submitting ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
-              }`}
+              className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 ${submitting ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+                }`}
             >
-              <span className="material-symbols-outlined text-[20px]">
-                {submitting ? "hourglass_top" : "save"}
+              <span className="material-symbols-outlined">
+                {submitting ? "hourglass_top" : mode === "renew" ? "autorenew" : "save"}
               </span>
-              {submitting ? "Creando..." : "Crear Contrato"}
+              {submitting
+                ? mode === "renew"
+                  ? "Renovando..."
+                  : mode === "edit"
+                    ? "Actualizando..."
+                    : "Creando..."
+                : mode === "renew"
+                  ? "Renovar"
+                  : mode === "edit"
+                    ? "Actualizar"
+                    : "Crear Contrato"}
             </button>
           </div>
         </form>
@@ -403,12 +573,8 @@ export default function CreateContractForm({ onClose, onContractCreated }) {
 
       <style>{`
         @keyframes slide-in {
-          from {
-            transform: translateX(100%);
-          }
-          to {
-            transform: translateX(0);
-          }
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
         }
         .animate-slide-in {
           animation: slide-in 0.3s ease-out;

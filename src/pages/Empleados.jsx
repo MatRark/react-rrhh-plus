@@ -5,9 +5,14 @@ import { createPortal } from "react-dom";
    CONFIG / HELPERS (reutilizables y robustos)
 ===================================================== */
 const API = {
-  base: "https://rhplus.somee.com/api/Employees", // GET list, POST, PUT {id}, DELETE {id}
+  base: "https://rhplus.somee.com/api/Employees",
   detail: (id) => `https://rhplus.somee.com/api/Employees/${id}/detalle`,
+  areas: "https://rhplus.somee.com/api/Employees/areas",
+  turnos: "https://rhplus.somee.com/api/Employees/turnos",
+  puestos: "https://rhplus.somee.com/api/Employees/puestos",
+  estatus: "https://rhplus.somee.com/api/Employees/estatus",
 };
+
 
 const getToken = () => localStorage.getItem("token") || "";
 const authHeaders = () => (getToken() ? { Authorization: `Bearer ${getToken()}` } : {});
@@ -16,20 +21,34 @@ const ACCEPT_JSON = { Accept: "application/json" };
 const JSON_HEADERS = { "Content-Type": "application/json", ...ACCEPT_JSON };
 
 async function fetchJSON(url, options = {}) {
-  const res = await fetch(url, { ...options });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || `HTTP ${res.status}`);
+  let res;
+  try {
+    res = await fetch(url, { ...options });
+  } catch (e) {
+    // “Failed to fetch”, “NetworkError…”, CORS bloqueado, offline, etc.
+    const err = new Error("No se pudo conectar con el servidor. Verifica tu conexión a internet.");
+    err.cause = e;
+    throw err;
   }
+
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      const err = new Error("AUTH");
+      err.status = res.status;
+      throw err;
+    }
+    const txt = await res.text().catch(() => "");
+    const err = new Error(txt || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+
   if (res.status === 204) return null;
   const text = await res.text().catch(() => "");
   if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null; // tolerante a content-type incorrecto
-  }
+  try { return JSON.parse(text); } catch { return null; }
 }
+
 
 function safeString(v, def = "") { return (v ?? def) + ""; }
 function isPositiveInt(v) { const n = Number(v); return Number.isInteger(n) && n > 0; }
@@ -42,10 +61,10 @@ const PLACEHOLDERS = {
   email: "ejemplo@correo.com",
   telefono: "Ej. 771 123 4567",
   fecha: "AAAA-MM-DD",
-  areaId: "Ej. 1",
-  puestoId: "Ej. 3",
-  turnoId: "Ej. 2",
-  estatusId: "Ej. 1",
+  areaId: "Ej. Tic's",
+  puestoId: "Ej. Jefe TI",
+  turnoId: "Ej. Noct",
+  estatusId: "Ej. Activo",
   password: "Mínimo 8 caracteres",
   rol: "Selecciona un rol",
   domicilio: {
@@ -179,7 +198,7 @@ function Toast({ open, kind = "success", text, onClose }) {
 }
 
 /* =====================================================
-   SHEET: ALTA DE EMPLEADO
+   SHEET: ALTA DE EMPLEADO (dropdowns con Nombre, value=Id)
 ===================================================== */
 function AddEmployeeSheet({ open, onClose, onCreate }) {
   const [form, setForm] = useState(() => ({
@@ -200,6 +219,38 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
   const [errors, setErrors] = useState({});
   const [errTop, setErrTop] = useState("");
 
+  // ---- catálogos
+  const [areas, setAreas] = useState([]);
+  const [turnos, setTurnos] = useState([]);
+  const [puestos, setPuestos] = useState([]);
+  const [estatus, setEstatus] = useState([]);
+  const [optLoading, setOptLoading] = useState(false);
+  const [optError, setOptError] = useState("");
+
+  // Normaliza items del API (usa Id / Nombre, con fallback)
+  function toIdName(list = []) {
+    return list.map((it) => {
+      // Soporta número o string numérica
+      if (typeof it === "number" || (typeof it === "string" && /^\d+$/.test(it))) {
+        const id = String(it);
+        return { id, name: id, areaId: null };
+      }
+      const id =
+        it?.Id ?? it?.ID ?? it?.id ??
+        it?.areaId ?? it?.puestoId ?? it?.turnoId ?? it?.estatusId ??
+        it?.value ?? "";
+
+      const name =
+        it?.Nombre ?? it?.nombre ?? it?.Name ?? it?.name ??
+        it?.Titulo ?? it?.titulo ?? it?.Descripcion ?? it?.descripcion ??
+        String(id);
+
+      const areaId = it?.AreaId ?? it?.areaId ?? null; // para filtrar puestos por área si viene
+      return { id: String(id), name: String(name), areaId };
+    });
+  }
+
+  // Reset al abrir
   useEffect(() => {
     if (open) {
       setErrTop(""); setBusy(false); setErrors({});
@@ -213,6 +264,44 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
     }
   }, [open]);
 
+  // Carga catálogos con token (Bearer) desde localStorage
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    const ac = new AbortController();
+
+    (async () => {
+      setOptLoading(true);
+      setOptError("");
+      try {
+        const headers = { ...ACCEPT_JSON, ...authHeaders() };
+        const [a, t, p, e] = await Promise.all([
+          fetchJSON(API.areas, { headers, signal: ac.signal }),
+          fetchJSON(API.turnos, { headers, signal: ac.signal }),
+          fetchJSON(API.puestos, { headers, signal: ac.signal }),
+          fetchJSON(API.estatus, { headers, signal: ac.signal }),
+        ]);
+        if (!alive) return;
+        setAreas(toIdName(Array.isArray(a) ? a : []));
+        setTurnos(toIdName(Array.isArray(t) ? t : []));
+        setPuestos(toIdName(Array.isArray(p) ? p : []));
+        setEstatus(toIdName(Array.isArray(e) ? e : []));
+      } catch (err) {
+        if (alive) setOptError("No se pudieron cargar los catálogos.");
+      } finally {
+        if (alive) setOptLoading(false);
+      }
+    })();
+
+    return () => { alive = false; ac.abort(); };
+  }, [open]);
+
+  // Puestos filtrados por área (si el API provee AreaId)
+  const puestosFiltrados = useMemo(() => {
+    if (!form.areaId) return puestos;
+    return puestos.filter(p => String(p.areaId ?? "") === String(form.areaId));
+  }, [puestos, form.areaId]);
+
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setDom = (k, v) => setForm((f) => ({ ...f, domicilio: { ...f.domicilio, [k]: v } }));
   const setCtc = (k, v) => setForm((f) => ({ ...f, contacto: { ...f.contacto, [k]: v } }));
@@ -220,27 +309,22 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
   function validate() {
     const e = {};
     if (!form.nombre.trim()) e.nombre = "El nombre es obligatorio";
-    if (!isEmail(form.email)) e.email = "Correo inválido";
+    if (!isEmail(form.emaiFl)) e.email = "Correo inválido";
     if (form.telefono && !isPhone(form.telefono)) e.telefono = "Teléfono inválido";
     if (form.fechaIngreso && !isDateISO(form.fechaIngreso)) e.fechaIngreso = "Fecha inválida (AAAA-MM-DD)";
-    if (!isPositiveInt(form.areaId)) e.areaId = "Área ID inválido";
-    if (!isPositiveInt(form.puestoId)) e.puestoId = "Puesto ID inválido";
-    if (!isPositiveInt(form.turnoId)) e.turnoId = "Turno ID inválido";
-    if (!isPositiveInt(form.estatusId)) e.estatusId = "Estatus ID inválido";
+    if (!isPositiveInt(form.areaId)) e.areaId = "Área inválido";
+    if (!isPositiveInt(form.puestoId)) e.puestoId = "Puesto inválido";
+    if (!isPositiveInt(form.turnoId)) e.turnoId = "Turno inválido";
+    if (!isPositiveInt(form.estatusId)) e.estatusId = "Estatus inválido";
     if (!form.password || form.password.length < 8) e.password = "Mínimo 8 caracteres";
-
-    // domicilio requerido (excepto número)
     if (!form.domicilio.calle.trim()) e["dom.calle"] = "Calle obligatoria";
     if (!form.domicilio.colonia.trim()) e["dom.colonia"] = "Colonia obligatoria";
     if (!form.domicilio.ciudad.trim()) e["dom.ciudad"] = "Ciudad obligatoria";
     if (!form.domicilio.estado.trim()) e["dom.estado"] = "Estado obligatorio";
     if (!form.domicilio.codigoPostal.trim()) e["dom.cp"] = "Código postal obligatorio";
-
-    // contacto requerido
     if (!form.contacto.nombre.trim()) e["ctc.nombre"] = "Nombre de contacto obligatorio";
     if (!form.contacto.parentesco.trim()) e["ctc.parentesco"] = "Parentesco obligatorio";
     if (!isPhone(form.contacto.telefono)) e["ctc.telefono"] = "Teléfono de contacto inválido";
-
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -299,15 +383,95 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
               </div>
             </section>
 
-            {/* IDs */}
+            {/* Asignación: dropdowns con Nombre, value=Id (fallback a numérico) */}
             <section>
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Asignación</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <FormField label="Área ID" required icon="apartment" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.areaId} value={form.areaId} onChange={(e) => setField("areaId", e.target.value)} error={errors.areaId} />
-                <FormField label="Puesto ID" required icon="workspace_premium" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.puestoId} value={form.puestoId} onChange={(e) => setField("puestoId", e.target.value)} error={errors.puestoId} />
-                <FormField label="Turno ID" required icon="schedule" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.turnoId} value={form.turnoId} onChange={(e) => setField("turnoId", e.target.value)} error={errors.turnoId} />
-                <FormField label="Estatus ID" required icon="verified_user" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.estatusId} value={form.estatusId} onChange={(e) => setField("estatusId", e.target.value)} error={errors.estatusId} />
+
+                {/* Área */}
+                {areas.length ? (
+                  <FormField
+                    as="select"
+                    label="Área"
+                    required
+                    icon="apartment"
+                    value={form.areaId}
+                    onChange={(e) => { setField("areaId", e.target.value); setField("puestoId", ""); }}
+                    error={errors.areaId}
+                  >
+                    <option value="" disabled>{PLACEHOLDERS.areaId}</option>
+                    {areas.map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option> // muestra Nombre, envía Id
+                    ))}
+                  </FormField>
+                ) : (
+                  <FormField label="Área ID" required icon="apartment" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.areaId} value={form.areaId} onChange={(e) => setField("areaId", e.target.value)} error={errors.areaId} />
+                )}
+
+                {/* Puesto */}
+                {(puestosFiltrados.length || puestos.length) ? (
+                  <FormField
+                    as="select"
+                    label="Puesto"
+                    required
+                    icon="workspace_premium"
+                    value={form.puestoId}
+                    onChange={(e) => setField("puestoId", e.target.value)}
+                    error={errors.puestoId}
+                    disabled={!form.areaId}
+                  >
+                    <option value="" disabled>{PLACEHOLDERS.puestoId}</option>
+                    {(puestosFiltrados.length ? puestosFiltrados : puestos).map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </FormField>
+                ) : (
+                  <FormField label="Puesto ID" required icon="workspace_premium" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.puestoId} value={form.puestoId} onChange={(e) => setField("puestoId", e.target.value)} error={errors.puestoId} />
+                )}
+
+                {/* Turno */}
+                {turnos.length ? (
+                  <FormField
+                    as="select"
+                    label="Turno"
+                    required
+                    icon="schedule"
+                    value={form.turnoId}
+                    onChange={(e) => setField("turnoId", e.target.value)}
+                    error={errors.turnoId}
+                  >
+                    <option value="" disabled>{PLACEHOLDERS.turnoId}</option>
+                    {turnos.map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </FormField>
+                ) : (
+                  <FormField label="Turno ID" required icon="schedule" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.turnoId} value={form.turnoId} onChange={(e) => setField("turnoId", e.target.value)} error={errors.turnoId} />
+                )}
+
+                {/* Estatus */}
+                {estatus.length ? (
+                  <FormField
+                    as="select"
+                    label="Estatus"
+                    required
+                    icon="verified_user"
+                    value={form.estatusId}
+                    onChange={(e) => setField("estatusId", e.target.value)}
+                    error={errors.estatusId}
+                  >
+                    <option value="" disabled>{PLACEHOLDERS.estatusId}</option>
+                    {estatus.map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </FormField>
+                ) : (
+                  <FormField label="Estatus ID" required icon="verified_user" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.estatusId} value={form.estatusId} onChange={(e) => setField("estatusId", e.target.value)} error={errors.estatusId} />
+                )}
               </div>
+
+              {optLoading && <p className="mt-2 text-xs text-slate-500">Cargando catálogos…</p>}
+              {optError && <p className="mt-2 text-xs text-red-600">{optError}</p>}
             </section>
 
             {/* Acceso */}
@@ -316,9 +480,7 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <FormField label="Contraseña" required icon="password" type="password" name="new-password" autoComplete="new-password" placeholder={PLACEHOLDERS.password} value={form.password} onChange={(e) => setField("password", e.target.value)} error={errors.password} />
                 <FormField as="select" label="Rol" required icon="badge" value={form.rol} onChange={(e) => setField("rol", e.target.value)}>
-                  <option value="" disabled>
-                    {PLACEHOLDERS.rol}
-                  </option>
+                  <option value="" disabled>{PLACEHOLDERS.rol}</option>
                   <option value="empleado">empleado</option>
                   <option value="admin">admin</option>
                 </FormField>
@@ -364,8 +526,9 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
   );
 }
 
+
 /* =====================================================
-   SHEET: DETALLE / EDICIÓN
+   SHEET: DETALLE / EDICIÓN (con catálogos en dropdown)
 ===================================================== */
 function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading, error }) {
   const [editMode, setEditMode] = useState(false);
@@ -373,7 +536,73 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
   const [err, setErr] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
-  useEffect(() => { if (open) { setEditMode(false); setBusy(false); setErr(""); setFieldErrors({}); } }, [open]);
+  // ---- catálogos (mismo patrón que en AddEmployeeSheet)
+  const [areas, setAreas] = useState([]);
+  const [turnos, setTurnos] = useState([]);
+  const [puestos, setPuestos] = useState([]);
+  const [estatus, setEstatus] = useState([]);
+  const [optLoading, setOptLoading] = useState(false);
+  const [optError, setOptError] = useState("");
+
+  useEffect(() => {
+    if (open) { setEditMode(false); setBusy(false); setErr(""); setFieldErrors({}); }
+  }, [open]);
+
+  // normalizador defensivo (Id/Nombre y soporta variantes)
+  function toIdName(list = []) {
+    return list.map((it) => {
+      if (typeof it === "number" || (typeof it === "string" && /^\d+$/.test(it))) {
+        const id = String(it);
+        return { id, name: id, areaId: null };
+      }
+      const id =
+        it?.Id ?? it?.ID ?? it?.id ??
+        it?.areaId ?? it?.puestoId ?? it?.turnoId ?? it?.estatusId ?? it?.value ?? "";
+      const name =
+        it?.Nombre ?? it?.nombre ?? it?.Name ?? it?.name ??
+        it?.Titulo ?? it?.titulo ?? it?.Descripcion ?? it?.descripcion ?? String(id);
+      const areaId = it?.AreaId ?? it?.areaId ?? null;
+      return { id: String(id), name: String(name), areaId };
+    });
+  }
+
+  // carga catálogos al abrir el sheet
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    const ac = new AbortController();
+
+    (async () => {
+      setOptLoading(true);
+      setOptError("");
+      try {
+        const headers = { ...ACCEPT_JSON, ...authHeaders() };
+        const [a, t, p, e] = await Promise.all([
+          fetchJSON(API.areas, { headers, signal: ac.signal }),
+          fetchJSON(API.turnos, { headers, signal: ac.signal }),
+          fetchJSON(API.puestos, { headers, signal: ac.signal }),
+          fetchJSON(API.estatus, { headers, signal: ac.signal }),
+        ]);
+        if (!alive) return;
+        setAreas(toIdName(Array.isArray(a) ? a : []));
+        setTurnos(toIdName(Array.isArray(t) ? t : []));
+        setPuestos(toIdName(Array.isArray(p) ? p : []));
+        setEstatus(toIdName(Array.isArray(e) ? e : []));
+      } catch (e) {
+        if (alive) setOptError("No se pudieron cargar los catálogos.");
+      } finally {
+        if (alive) setOptLoading(false);
+      }
+    })();
+
+    return () => { alive = false; ac.abort(); };
+  }, [open]);
+
+  // filtrar puestos por área (si catálogo trae AreaId)
+  const puestosFiltrados = useMemo(() => {
+    if (!detail?.areaId) return puestos;
+    return puestos.filter(p => String(p.areaId ?? "") === String(detail.areaId));
+  }, [puestos, detail?.areaId]);
 
   const setField = (k, v) => setDetail((d) => ({ ...d, [k]: v }));
 
@@ -397,7 +626,7 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
     if (!validate(detail)) return;
     setBusy(true);
     try {
-      await onSave(detail);
+      await onSave(detail); // tu saveDetail ya castea a Number(...)
       setEditMode(false);
     } catch (ex) {
       setErr(ex.message || "No se pudo guardar.");
@@ -438,13 +667,63 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
                   <FormField label="Teléfono" icon="call" placeholder={PLACEHOLDERS.telefono} value={detail.telefono || ""} onChange={(e) => setField("telefono", e.target.value)} error={fieldErrors.telefono} />
                   <FormField label="Fecha de ingreso" icon="event" type="date" placeholder={PLACEHOLDERS.fecha} value={detail.fechaIngreso || ""} onChange={(e) => setField("fechaIngreso", e.target.value)} />
 
-                  {/* IDs numéricos para PUT */}
-                  <FormField label="Área ID" required icon="apartment" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.areaId} value={detail.areaId ?? ""} onChange={(e) => setField("areaId", e.target.value)} error={fieldErrors.areaId} />
-                  <FormField label="Puesto ID" required icon="workspace_premium" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.puestoId} value={detail.puestoId ?? ""} onChange={(e) => setField("puestoId", e.target.value)} error={fieldErrors.puestoId} />
-                  <FormField label="Turno ID" required icon="schedule" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.turnoId} value={detail.turnoId ?? ""} onChange={(e) => setField("turnoId", e.target.value)} error={fieldErrors.turnoId} />
-                  <FormField label="Estatus ID" required icon="verified_user" type="number" inputMode="numeric" min="1" placeholder={PLACEHOLDERS.estatusId} value={detail.estatusId ?? ""} onChange={(e) => setField("estatusId", e.target.value)} error={fieldErrors.estatusId} />
+                  {/* === Dropdowns con Nombre (value=Id); fallback numérico === */}
+                  {/* Área */}
+                  {areas.length ? (
+                    <FormField as="select" label="Área" required icon="apartment"
+                      value={detail.areaId ?? ""} onChange={(e) => { setField("areaId", e.target.value); setField("puestoId", ""); }}
+                      error={fieldErrors.areaId}>
+                      <option value="" disabled>{PLACEHOLDERS.areaId}</option>
+                      {areas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </FormField>
+                  ) : (
+                    <FormField label="Área ID" required icon="apartment" type="number" inputMode="numeric" min="1"
+                      placeholder={PLACEHOLDERS.areaId} value={detail.areaId ?? ""} onChange={(e) => setField("areaId", e.target.value)} error={fieldErrors.areaId} />
+                  )}
+
+                  {/* Puesto (filtrado por área si aplica) */}
+                  {(puestosFiltrados.length || puestos.length) ? (
+                    <FormField as="select" label="Puesto" required icon="workspace_premium"
+                      value={detail.puestoId ?? ""} onChange={(e) => setField("puestoId", e.target.value)}
+                      error={fieldErrors.puestoId} disabled={!detail.areaId}>
+                      <option value="" disabled>{PLACEHOLDERS.puestoId}</option>
+                      {(puestosFiltrados.length ? puestosFiltrados : puestos).map(o =>
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      )}
+                    </FormField>
+                  ) : (
+                    <FormField label="Puesto ID" required icon="workspace_premium" type="number" inputMode="numeric" min="1"
+                      placeholder={PLACEHOLDERS.puestoId} value={detail.puestoId ?? ""} onChange={(e) => setField("puestoId", e.target.value)} error={fieldErrors.puestoId} />
+                  )}
+
+                  {/* Turno */}
+                  {turnos.length ? (
+                    <FormField as="select" label="Turno" required icon="schedule"
+                      value={detail.turnoId ?? ""} onChange={(e) => setField("turnoId", e.target.value)}
+                      error={fieldErrors.turnoId}>
+                      <option value="" disabled>{PLACEHOLDERS.turnoId}</option>
+                      {turnos.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </FormField>
+                  ) : (
+                    <FormField label="Turno ID" required icon="schedule" type="number" inputMode="numeric" min="1"
+                      placeholder={PLACEHOLDERS.turnoId} value={detail.turnoId ?? ""} onChange={(e) => setField("turnoId", e.target.value)} error={fieldErrors.turnoId} />
+                  )}
+
+                  {/* Estatus (Activo, Inactivo, Suspendido, Baja) */}
+                  {estatus.length ? (
+                    <FormField as="select" label="Estatus" required icon="verified_user"
+                      value={detail.estatusId ?? ""} onChange={(e) => setField("estatusId", e.target.value)}
+                      error={fieldErrors.estatusId}>
+                      <option value="" disabled>{PLACEHOLDERS.estatusId}</option>
+                      {estatus.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </FormField>
+                  ) : (
+                    <FormField label="Estatus ID" required icon="verified_user" type="number" inputMode="numeric" min="1"
+                      placeholder={PLACEHOLDERS.estatusId} value={detail.estatusId ?? ""} onChange={(e) => setField("estatusId", e.target.value)} error={fieldErrors.estatusId} />
+                  )}
                 </div>
 
+                {/* contexto de labels actuales */}
                 <p className="text-xs text-slate-500">
                   {detail.area && <>Área actual: <b>{detail.area}</b> · </>}
                   {detail.puesto && <>Puesto actual: <b>{detail.puesto}</b> · </>}
@@ -460,6 +739,9 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
                     {busy ? "Guardando..." : "Guardar"}
                   </button>
                 </div>
+
+                {optLoading && <p className="text-xs text-slate-500">Cargando catálogos…</p>}
+                {optError && <p className="text-xs text-red-600">{optError}</p>}
               </form>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -480,6 +762,7 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
     </div>
   );
 }
+
 
 function Info({ label, value }) {
   return (
@@ -631,42 +914,86 @@ export default function EmployeeTable() {
     }));
   }
 
-  // PUT empleado (IDs)
+  // Reemplaza tu saveDetail por este
+  // PUT empleado (IDs + fechaIngreso normalizada + token)
   async function saveDetail(d) {
-    const toInt = (v, name) => { if (!isPositiveInt(v)) throw new Error(`${name} inválido`); return Number(v); };
+    const toInt = (v, name) => {
+      if (!isPositiveInt(v)) throw new Error(`${name} inválido`);
+      return Number(v);
+    };
+
+    // Normaliza AAAA-MM-DD (soporta "2025-11-06T00:00:00")
+    const fechaIso = d.fechaIngreso ? String(d.fechaIngreso).slice(0, 10) : null;
+
     const payload = {
-      nombre: d.nombre,
-      email: d.email ?? d.correo,
-      telefono: d.telefono,
+      nombre: d.nombre?.trim(),
+      email: d.email ?? d.correo,    // compat con backend
+      correo: d.email ?? d.correo,   // compat
+      telefono: d.telefono || null,
+      fechaIngreso: fechaIso,        // 👈 ahora sí se envía
       areaId: toInt(d.areaId, "Área ID"),
       puestoId: toInt(d.puestoId, "Puesto ID"),
       turnoId: toInt(d.turnoId, "Turno ID"),
       estatusId: toInt(d.estatusId, "Estatus ID"),
     };
-    const updated = await fetchJSON(`${API.base}/${d.id}`, {
-      method: "PUT",
-      headers: { ...JSON_HEADERS, ...authHeaders() },
-      body: JSON.stringify(payload),
-    });
+
+    // Limpia nulos para no romper validadores del backend
+    Object.keys(payload).forEach(k => (payload[k] == null) && delete payload[k]);
+
+    let updated;
+    try {
+      updated = await fetchJSON(`${API.base}/${d.id}`, {
+        method: "PUT",
+        headers: { ...JSON_HEADERS, ...authHeaders() }, // 👈 token
+        body: JSON.stringify(payload),
+      });
+    } catch (ex) {
+      // Mensaje amable cuando sea red/CORS
+      const msg = (ex?.message || "").toLowerCase();
+      if (msg === "network_fail" || msg.includes("failed to fetch") || msg.includes("networkerror")) {
+        throw new Error("No se pudo contactar al servidor (CORS o conexión). Intenta de nuevo.");
+      }
+      throw ex;
+    }
 
     if (updated?.id) {
-      setData((prev) => prev.map((x) => (x.id === String(updated.id) ? { ...x, ...mapRow(updated), areaId: payload.areaId, puestoId: payload.puestoId, turnoId: payload.turnoId, estatusId: payload.estatusId } : x)));
-      setDetail((prev) => ({
+      // Refleja cambios en la tabla
+      setData(prev =>
+        prev.map(x =>
+          x.id === String(updated.id)
+            ? {
+              ...x,
+              ...mapRow(updated),
+              areaId: payload.areaId,
+              puestoId: payload.puestoId,
+              turnoId: payload.turnoId,
+              estatusId: payload.estatusId,
+            }
+            : x
+        )
+      );
+
+      // Refleja cambios en el sheet
+      setDetail(prev => ({
         ...prev,
         nombre: updated.nombre ?? prev?.nombre,
         email: updated.email ?? updated.correo ?? prev?.email,
         telefono: updated.telefono ?? prev?.telefono,
+        fechaIngreso: updated.fechaIngreso ?? prev?.fechaIngreso,
         area: updated.area ?? updated.areaNombre ?? prev?.area,
         puesto: updated.puesto ?? updated.puestoNombre ?? prev?.puesto,
         turno: updated.turno ?? updated.turnoNombre ?? prev?.turno,
         estatus: updated.estatus ?? updated.estatusNombre ?? prev?.estatus,
-        areaId: payload.areaId, puestoId: payload.puestoId, turnoId: payload.turnoId, estatusId: payload.estatusId,
+        areaId: payload.areaId,
+        puestoId: payload.puestoId,
+        turnoId: payload.turnoId,
+        estatusId: payload.estatusId,
       }));
     } else {
+      // Si el API no devuelve el recurso completo, refresca
       await refreshRow(d.id);
     }
   }
-
   // POST empleado (IDs + password + domicilio + contacto)
   async function handleCreateEmployee(ui) {
     const payload = {
@@ -773,7 +1100,7 @@ export default function EmployeeTable() {
 
         {/* Toolbar */}
         <div className="mt-4 lg:mt-6 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
-          
+
           <div className="relative flex-1 min-w-[220px]">
             <label htmlFor="search" className="sr-only">Buscar</label>
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>

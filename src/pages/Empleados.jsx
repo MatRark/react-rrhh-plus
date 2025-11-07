@@ -52,7 +52,7 @@ async function fetchJSON(url, options = {}) {
 
 function safeString(v, def = "") { return (v ?? def) + ""; }
 function isPositiveInt(v) { const n = Number(v); return Number.isInteger(n) && n > 0; }
-function isEmail(v) { return /^\S+@\S+\.\S+$/.test(String(v || "").trim()); }
+function isEmail(v) {return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || "").trim());}
 function isPhone(v) { return /^\+?\d[\d\s-]{6,}$/.test(String(v || "").trim()); }
 function isDateISO(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")); }
 
@@ -309,8 +309,8 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
   function validate() {
     const e = {};
     if (!form.nombre.trim()) e.nombre = "El nombre es obligatorio";
-    if (!isEmail(form.emaiFl)) e.email = "Correo inválido";
-    if (form.telefono && !isPhone(form.telefono)) e.telefono = "Teléfono inválido";
+  const email = String(form.email || "").trim();
+  if (!isEmail(email)) e.email = "Correo inválido";    if (form.telefono && !isPhone(form.telefono)) e.telefono = "Teléfono inválido";
     if (form.fechaIngreso && !isDateISO(form.fechaIngreso)) e.fechaIngreso = "Fecha inválida (AAAA-MM-DD)";
     if (!isPositiveInt(form.areaId)) e.areaId = "Área inválido";
     if (!isPositiveInt(form.puestoId)) e.puestoId = "Puesto inválido";

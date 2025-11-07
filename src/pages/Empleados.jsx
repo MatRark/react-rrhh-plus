@@ -309,13 +309,13 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
   function validate() {
     const e = {};
     if (!form.nombre.trim()) e.nombre = "El nombre es obligatorio";
-    if (!isEmail(form.email)) e.email = "Correo inválido";
+    if (!isEmail(form.emaiFl)) e.email = "Correo inválido";
     if (form.telefono && !isPhone(form.telefono)) e.telefono = "Teléfono inválido";
     if (form.fechaIngreso && !isDateISO(form.fechaIngreso)) e.fechaIngreso = "Fecha inválida (AAAA-MM-DD)";
-    if (!isPositiveInt(form.areaId)) e.areaId = "Área ID inválido";
-    if (!isPositiveInt(form.puestoId)) e.puestoId = "Puesto ID inválido";
-    if (!isPositiveInt(form.turnoId)) e.turnoId = "Turno ID inválido";
-    if (!isPositiveInt(form.estatusId)) e.estatusId = "Estatus ID inválido";
+    if (!isPositiveInt(form.areaId)) e.areaId = "Área inválido";
+    if (!isPositiveInt(form.puestoId)) e.puestoId = "Puesto inválido";
+    if (!isPositiveInt(form.turnoId)) e.turnoId = "Turno inválido";
+    if (!isPositiveInt(form.estatusId)) e.estatusId = "Estatus inválido";
     if (!form.password || form.password.length < 8) e.password = "Mínimo 8 caracteres";
     if (!form.domicilio.calle.trim()) e["dom.calle"] = "Calle obligatoria";
     if (!form.domicilio.colonia.trim()) e["dom.colonia"] = "Colonia obligatoria";

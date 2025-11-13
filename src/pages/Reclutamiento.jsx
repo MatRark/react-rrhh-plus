@@ -20,6 +20,9 @@ export default function RecruitmentPanel() {
     fechaPublicacion: "",
   });
 
+  // ==========================
+  // Cargar vacantes al inicio
+  // ==========================
   useEffect(() => {
     loadVacantes();
   }, []);
@@ -33,17 +36,20 @@ export default function RecruitmentPanel() {
     }
   };
 
+  // ==========================
+  // Abrir modal -> cargar áreas
+  // ==========================
   const abrirModal = async () => {
     setOpenModal(true);
     setLoadingModal(true);
 
     try {
       const dataAreas = await getAreas();
-      setAreas(dataAreas);
+      setAreas(dataAreas); // vienen con Id y Nombre
     } catch (err) {
-      console.error(err);
+      console.error("Error cargando áreas:", err);
     } finally {
-      setTimeout(() => setLoadingModal(false), 600);
+      setTimeout(() => setLoadingModal(false), 400);
     }
   };
 
@@ -51,21 +57,28 @@ export default function RecruitmentPanel() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // ==========================
+  // Cambio de área -> cargar puestos
+  // ==========================
   const handleAreaChange = async (e) => {
     const areaId = e.target.value;
 
     setForm({ ...form, areaId, puestoId: "" });
+    setPuestos([]);
 
     if (!areaId) return;
 
     try {
-      const data = await getPuestos(areaId);
-      setPuestos(data);
+      const dataPuestos = await getPuestos(areaId);
+      setPuestos(dataPuestos); // vienen con Id, Nombre, AreaId
     } catch (err) {
-      console.error(err);
+      console.error("Error cargando puestos:", err);
     }
   };
 
+  // ==========================
+  // Crear vacante
+  // ==========================
   const crear = async () => {
     if (!form.titulo || !form.areaId || !form.puestoId || !form.fechaPublicacion) {
       setError("Todos los campos obligatorios deben estar llenos.");
@@ -78,13 +91,13 @@ export default function RecruitmentPanel() {
       await createVacante({
         titulo: form.titulo,
         descripcion: form.descripcion,
-        areaId: Number(form.areaId),
+        areaId: Number(form.areaId),   // aquí mandamos el Id correcto
         puestoId: Number(form.puestoId),
         fechaPublicacion: form.fechaPublicacion,
       });
 
+      // Reset
       setOpenModal(false);
-      loadVacantes();
       setForm({
         titulo: "",
         descripcion: "",
@@ -93,6 +106,7 @@ export default function RecruitmentPanel() {
         fechaPublicacion: "",
       });
       setError("");
+      loadVacantes();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -102,35 +116,30 @@ export default function RecruitmentPanel() {
 
   return (
     <>
-      {/* ====================================== */}
-      {/* LOADER CENTRAL                         */}
-      {/* ====================================== */}
+      {/* LOADER CENTRAL */}
       {loadingModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-[9999]">
           <div className="bg-white dark:bg-gray-800 px-10 py-6 rounded-xl shadow-xl border flex flex-col items-center gap-3">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
             <p className="font-semibold text-gray-700 dark:text-gray-200">Cargando...</p>
           </div>
         </div>
       )}
 
-      {/* ====================================== */}
-      {/* CONTENIDO PRINCIPAL                    */}
-      {/* ====================================== */}
+      {/* CONTENIDO PRINCIPAL */}
       <div className="p-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Vacantes</h1>
 
           <button
             onClick={abrirModal}
-            className="flex gap-2 items-center bg-primary text-white px-5 py-3 rounded-lg font-semibold hover:bg-primary/90"
+            className="flex gap-2 items-center bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700"
           >
             <span className="material-symbols-outlined">add</span>
             Nueva Vacante
           </button>
         </div>
 
-        {/* Tabla */}
         <div className="bg-white dark:bg-gray-900 shadow rounded-xl border">
           <table className="w-full">
             <thead>
@@ -142,7 +151,6 @@ export default function RecruitmentPanel() {
                 <th className="px-6 py-3">Publicación</th>
               </tr>
             </thead>
-
             <tbody>
               {vacantes.map((v) => (
                 <tr key={v.vacanteId} className="border-t">
@@ -160,9 +168,7 @@ export default function RecruitmentPanel() {
         </div>
       </div>
 
-      {/* ====================================== */}
-      {/* MODAL → MISMO DISEÑO QUE "NUEVO EMPLEADO" */}
-      {/* ====================================== */}
+      {/* MODAL / DRAWER */}
       <div
         className={`
           fixed top-0 right-0 h-full w-full sm:w-[550px] bg-white dark:bg-gray-900 
@@ -170,8 +176,8 @@ export default function RecruitmentPanel() {
           ${openModal ? "translate-x-0" : "translate-x-full"}
         `}
       >
-        {/* HEADER */}
-        <div className="bg-gradient-to-r from-primary to-blue-500 px-6 py-5 text-white">
+        {/* HEADER AZUL FUERTE COMO CONTRATOS */}
+        <div className="bg-blue-600 px-6 py-5 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -189,7 +195,6 @@ export default function RecruitmentPanel() {
 
         {/* FORM */}
         <div className="p-6 overflow-y-auto space-y-6 h-[calc(100%-150px)]">
-
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           {/* Título */}
@@ -206,7 +211,7 @@ export default function RecruitmentPanel() {
                 placeholder="Ej. Desarrollador .NET Jr"
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-primary focus:border-primary"
+                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               />
             </div>
           </div>
@@ -221,7 +226,7 @@ export default function RecruitmentPanel() {
               placeholder="Descripción de la vacante"
               className="w-full px-4 py-2.5 h-28 border rounded-xl bg-white dark:bg-gray-800 
                          border-gray-300 dark:border-gray-600 
-                         focus:ring-2 focus:ring-primary"
+                         focus:ring-2 focus:ring-blue-600"
             />
           </div>
 
@@ -238,12 +243,13 @@ export default function RecruitmentPanel() {
                 onChange={handleAreaChange}
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-primary appearance-none"
+                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600
+                           appearance-none"
               >
                 <option value="">Selecciona un área</option>
                 {areas.map((a) => (
-                  <option key={a.areaId} value={a.areaId}>
-                    {a.nombre}
+                  <option key={a.Id} value={a.Id}>
+                    {a.Nombre}
                   </option>
                 ))}
               </select>
@@ -267,12 +273,13 @@ export default function RecruitmentPanel() {
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-primary appearance-none disabled:bg-gray-200 dark:disabled:bg-gray-700"
+                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600
+                           appearance-none disabled:bg-gray-200 dark:disabled:bg-gray-700"
               >
                 <option value="">Selecciona un puesto</option>
                 {puestos.map((p) => (
-                  <option key={p.puestoId} value={p.puestoId}>
-                    {p.nombre}
+                  <option key={p.Id} value={p.Id}>
+                    {p.Nombre}
                   </option>
                 ))}
               </select>
@@ -282,7 +289,7 @@ export default function RecruitmentPanel() {
             </div>
           </div>
 
-          {/* Fecha */}
+          {/* Fecha publicación */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">Fecha publicación *</label>
             <div className="relative">
@@ -296,22 +303,24 @@ export default function RecruitmentPanel() {
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-primary"
+                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               />
             </div>
           </div>
-
         </div>
 
         {/* FOOTER */}
         <div className="flex justify-end gap-3 px-6 py-4 border-t bg-white dark:bg-gray-900">
-          <button onClick={() => setOpenModal(false)} className="px-4 py-2 border rounded-xl">
+          <button
+            onClick={() => setOpenModal(false)}
+            className="px-4 py-2 border rounded-xl"
+          >
             Cancelar
           </button>
 
           <button
             onClick={crear}
-            className="px-5 py-2 bg-primary text-white rounded-xl font-semibold"
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold"
           >
             Crear Vacante
           </button>

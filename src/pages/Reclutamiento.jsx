@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { getVacantes, createVacante } from "../services/vacantesService";
 import { getAreas, getPuestos } from "../services/catalogosService";
+import Postulation from "../components/Postulation";
 
 export default function RecruitmentPanel() {
   const [vacantes, setVacantes] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [loadingModal, setLoadingModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("vacantes");
 
   const [areas, setAreas] = useState([]);
   const [puestos, setPuestos] = useState([]);
@@ -20,12 +22,11 @@ export default function RecruitmentPanel() {
     fechaPublicacion: "",
   });
 
-  // ==========================
-  // Cargar vacantes al inicio
-  // ==========================
   useEffect(() => {
-    loadVacantes();
-  }, []);
+    if (activeTab === "vacantes") {
+      loadVacantes();
+    }
+  }, [activeTab]);
 
   const loadVacantes = async () => {
     try {
@@ -36,20 +37,17 @@ export default function RecruitmentPanel() {
     }
   };
 
-  // ==========================
-  // Abrir modal -> cargar áreas
-  // ==========================
   const abrirModal = async () => {
     setOpenModal(true);
     setLoadingModal(true);
 
     try {
       const dataAreas = await getAreas();
-      setAreas(dataAreas); // vienen con Id y Nombre
+      setAreas(dataAreas);
     } catch (err) {
-      console.error("Error cargando áreas:", err);
+      console.error(err);
     } finally {
-      setTimeout(() => setLoadingModal(false), 400);
+      setTimeout(() => setLoadingModal(false), 600);
     }
   };
 
@@ -57,28 +55,21 @@ export default function RecruitmentPanel() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ==========================
-  // Cambio de área -> cargar puestos
-  // ==========================
   const handleAreaChange = async (e) => {
     const areaId = e.target.value;
 
     setForm({ ...form, areaId, puestoId: "" });
-    setPuestos([]);
 
     if (!areaId) return;
 
     try {
-      const dataPuestos = await getPuestos(areaId);
-      setPuestos(dataPuestos); // vienen con Id, Nombre, AreaId
+      const data = await getPuestos(areaId);
+      setPuestos(data);
     } catch (err) {
-      console.error("Error cargando puestos:", err);
+      console.error(err);
     }
   };
 
-  // ==========================
-  // Crear vacante
-  // ==========================
   const crear = async () => {
     if (!form.titulo || !form.areaId || !form.puestoId || !form.fechaPublicacion) {
       setError("Todos los campos obligatorios deben estar llenos.");
@@ -91,13 +82,13 @@ export default function RecruitmentPanel() {
       await createVacante({
         titulo: form.titulo,
         descripcion: form.descripcion,
-        areaId: Number(form.areaId),   // aquí mandamos el Id correcto
+        areaId: Number(form.areaId),
         puestoId: Number(form.puestoId),
         fechaPublicacion: form.fechaPublicacion,
       });
 
-      // Reset
       setOpenModal(false);
+      loadVacantes();
       setForm({
         titulo: "",
         descripcion: "",
@@ -106,7 +97,6 @@ export default function RecruitmentPanel() {
         fechaPublicacion: "",
       });
       setError("");
-      loadVacantes();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -116,59 +106,123 @@ export default function RecruitmentPanel() {
 
   return (
     <>
-      {/* LOADER CENTRAL */}
+      {/* ====================================== */}
+      {/* LOADER CENTRAL                         */}
+      {/* ====================================== */}
       {loadingModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-[9999]">
           <div className="bg-white dark:bg-gray-800 px-10 py-6 rounded-xl shadow-xl border flex flex-col items-center gap-3">
-            <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
             <p className="font-semibold text-gray-700 dark:text-gray-200">Cargando...</p>
           </div>
         </div>
       )}
 
-      {/* CONTENIDO PRINCIPAL */}
-      <div className="p-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Vacantes</h1>
+      {/* ====================================== */}
+      {/* CONTENIDO PRINCIPAL                    */}
+      {/* ====================================== */}
+      <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold">Reclutamiento</h1>
+            <p className="text-slate-500 text-sm mt-1">
+              Gestiona las vacantes disponibles y revisa las postulaciones de candidatos.
+            </p>
+          </div>
 
-          <button
-            onClick={abrirModal}
-            className="flex gap-2 items-center bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700"
-          >
-            <span className="material-symbols-outlined">add</span>
-            Nueva Vacante
-          </button>
-        </div>
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="border-b border-slate-200">
+              <nav className="flex gap-4">
+                <button
+                  onClick={() => setActiveTab("vacantes")}
+                  className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                    activeTab === "vacantes"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-slate-600 hover:text-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px]">
+                      work
+                    </span>
+                    Vacantes
+                  </div>
+                </button>
 
-        <div className="bg-white dark:bg-gray-900 shadow rounded-xl border">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="px-6 py-3">Título</th>
-                <th className="px-6 py-3">Área</th>
-                <th className="px-6 py-3">Puesto</th>
-                <th className="px-6 py-3">Estado</th>
-                <th className="px-6 py-3">Publicación</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vacantes.map((v) => (
-                <tr key={v.vacanteId} className="border-t">
-                  <td className="px-6 py-3">{v.titulo}</td>
-                  <td className="px-6 py-3">{v.nombreArea}</td>
-                  <td className="px-6 py-3">{v.nombrePuesto}</td>
-                  <td className="px-6 py-3 capitalize">{v.estatus}</td>
-                  <td className="px-6 py-3">
-                    {new Date(v.fechaPublicacion).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                <button
+                  onClick={() => setActiveTab("postulaciones")}
+                  className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                    activeTab === "postulaciones"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-slate-600 hover:text-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px]">
+                      person_search
+                    </span>
+                    Postulaciones
+                  </div>
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          {/* Contenido según el tab activo */}
+          {activeTab === "vacantes" ? (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">Vacantes Disponibles</h2>
+
+                <button
+                  onClick={abrirModal}
+                  className="flex gap-2 items-center bg-primary text-white px-5 py-3 rounded-lg font-semibold hover:bg-primary/90"
+                >
+                  <span className="material-symbols-outlined">add</span>
+                  Nueva Vacante
+                </button>
+              </div>
+
+              {/* Tabla */}
+              <div className="bg-white dark:bg-gray-900 shadow rounded-xl border">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Título</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Área</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Puesto</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Estado</th>
+                      <th className="px-6 py-3 text-left text-sm font-semibold text-slate-700">Publicación</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {vacantes.map((v) => (
+                      <tr key={v.vacanteId} className="border-t hover:bg-slate-50">
+                        <td className="px-6 py-3 text-sm">{v.titulo}</td>
+                        <td className="px-6 py-3 text-sm">{v.nombreArea}</td>
+                        <td className="px-6 py-3 text-sm">{v.nombrePuesto}</td>
+                        <td className="px-6 py-3 text-sm capitalize">{v.estatus}</td>
+                        <td className="px-6 py-3 text-sm">
+                          {new Date(v.fechaPublicacion).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <Postulation />
+          )}
         </div>
       </div>
 
-      {/* MODAL / DRAWER */}
+      {/* ====================================== */}
+      {/* MODAL → MISMO DISEÑO QUE "NUEVO EMPLEADO" */}
+      {/* ====================================== */}
       <div
         className={`
           fixed top-0 right-0 h-full w-full sm:w-[550px] bg-white dark:bg-gray-900 
@@ -176,8 +230,8 @@ export default function RecruitmentPanel() {
           ${openModal ? "translate-x-0" : "translate-x-full"}
         `}
       >
-        {/* HEADER AZUL FUERTE COMO CONTRATOS */}
-        <div className="bg-blue-600 px-6 py-5 text-white">
+        {/* HEADER */}
+        <div className="bg-gradient-to-r from-primary to-blue-500 px-6 py-5 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -195,6 +249,7 @@ export default function RecruitmentPanel() {
 
         {/* FORM */}
         <div className="p-6 overflow-y-auto space-y-6 h-[calc(100%-150px)]">
+
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           {/* Título */}
@@ -211,7 +266,7 @@ export default function RecruitmentPanel() {
                 placeholder="Ej. Desarrollador .NET Jr"
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                           focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
@@ -226,7 +281,7 @@ export default function RecruitmentPanel() {
               placeholder="Descripción de la vacante"
               className="w-full px-4 py-2.5 h-28 border rounded-xl bg-white dark:bg-gray-800 
                          border-gray-300 dark:border-gray-600 
-                         focus:ring-2 focus:ring-blue-600"
+                         focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -243,13 +298,12 @@ export default function RecruitmentPanel() {
                 onChange={handleAreaChange}
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600
-                           appearance-none"
+                           focus:ring-2 focus:ring-primary appearance-none"
               >
                 <option value="">Selecciona un área</option>
                 {areas.map((a) => (
-                  <option key={a.Id} value={a.Id}>
-                    {a.Nombre}
+                  <option key={a.areaId} value={a.areaId}>
+                    {a.nombre}
                   </option>
                 ))}
               </select>
@@ -273,13 +327,12 @@ export default function RecruitmentPanel() {
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600
-                           appearance-none disabled:bg-gray-200 dark:disabled:bg-gray-700"
+                           focus:ring-2 focus:ring-primary appearance-none disabled:bg-gray-200 dark:disabled:bg-gray-700"
               >
                 <option value="">Selecciona un puesto</option>
                 {puestos.map((p) => (
-                  <option key={p.Id} value={p.Id}>
-                    {p.Nombre}
+                  <option key={p.puestoId} value={p.puestoId}>
+                    {p.nombre}
                   </option>
                 ))}
               </select>
@@ -289,7 +342,7 @@ export default function RecruitmentPanel() {
             </div>
           </div>
 
-          {/* Fecha publicación */}
+          {/* Fecha */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium">Fecha publicación *</label>
             <div className="relative">
@@ -303,24 +356,22 @@ export default function RecruitmentPanel() {
                 onChange={handleChange}
                 className="w-full pl-10 pr-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 
                            border-gray-300 dark:border-gray-600 
-                           focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                           focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
+
         </div>
 
         {/* FOOTER */}
         <div className="flex justify-end gap-3 px-6 py-4 border-t bg-white dark:bg-gray-900">
-          <button
-            onClick={() => setOpenModal(false)}
-            className="px-4 py-2 border rounded-xl"
-          >
+          <button onClick={() => setOpenModal(false)} className="px-4 py-2 border rounded-xl">
             Cancelar
           </button>
 
           <button
             onClick={crear}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold"
+            className="px-5 py-2 bg-primary text-white rounded-xl font-semibold"
           >
             Crear Vacante
           </button>

@@ -1,5 +1,7 @@
 // components/PostulationForm.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPostulacion } from "../services/postulacionesService";
+import { getVacantes } from "../services/vacantesService";
 
 // Campo de formulario reutilizable - FUERA del componente principal
 function FormField({ label, required, error, icon, children, className = "", ...props }) {
@@ -47,30 +49,83 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  
+  // Estados para vacantes
+  const [vacantes, setVacantes] = useState([]);
+  const [loadingVacantes, setLoadingVacantes] = useState(true);
 
-  // Datos estáticos - Vacantes disponibles
-  const availableVacancies = [
-    { id: 1, titulo: "Desarrollador Full Stack", area: "Tecnología" },
-    { id: 2, titulo: "Diseñador UI/UX", area: "Diseño" },
-    { id: 3, titulo: "Gerente de Ventas", area: "Ventas" },
-    { id: 4, titulo: "Analista de Datos", area: "Análisis" },
-  ];
+  // Cargar vacantes al montar el componente
+  useEffect(() => {
+    const fetchVacantes = async () => {
+      try {
+        setLoadingVacantes(true);
+        const data = await getVacantes();
+        
+        // Asegurarse de que sea un array
+        const vacantesArray = Array.isArray(data) ? data : (data.data || data.items || []);
+        
+        // Filtrar solo vacantes abiertas
+        const vacantesAbiertas = vacantesArray.filter(v => v.estatus === "abierta");
+        setVacantes(vacantesAbiertas);
+      } catch (error) {
+        console.error("Error al cargar vacantes:", error);
+        setMessage(`Error al cargar vacantes: ${error.message}`);
+        setVacantes([]); // Asegurar que sea un array vacío en caso de error
+      } finally {
+        setLoadingVacantes(false);
+      }
+    };
 
-  // Validaciones
+    fetchVacantes();
+  }, []);
+
+  // Función para validar y formatear teléfono
+  const formatPhoneInput = (value) => {
+    // Permitir solo números, espacios, +, -, (, )
+    const cleaned = value.replace(/[^\d\s+\-()]/g, '');
+    return cleaned;
+  };
+
+  // Validaciones MEJORADAS - TODOS LOS CAMPOS OBLIGATORIOS
   const validateForm = () => {
     const newErrors = {};
 
+    // Validación de vacante
     if (!formData.vacanteId) newErrors.vacanteId = "Selecciona una vacante";
-    if (!formData.nombreContacto.trim()) newErrors.nombreContacto = "El nombre es obligatorio";
     
-    // Email es opcional, pero si se proporciona debe ser válido
-    if (formData.emailContacto && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailContacto)) {
-      newErrors.emailContacto = "Formato de email inválido";
+    // Validación de nombre
+    if (!formData.nombreContacto.trim()) {
+      newErrors.nombreContacto = "El nombre completo es obligatorio";
+    } else if (formData.nombreContacto.trim().length < 2) {
+      newErrors.nombreContacto = "El nombre debe tener al menos 2 caracteres";
+    }
+    
+    // Validación de email (OBLIGATORIO)
+    if (!formData.emailContacto.trim()) {
+      newErrors.emailContacto = "El correo electrónico es obligatorio";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailContacto)) {
+      newErrors.emailContacto = "Formato de email inválido (ejemplo: usuario@correo.com)";
     }
 
-    // Teléfono es opcional, pero si se proporciona debe ser válido
-    if (formData.telefonoContacto && !/^\+?\d[\d\s-]{6,}$/.test(formData.telefonoContacto)) {
-      newErrors.telefonoContacto = "Formato de teléfono inválido";
+    // Validación de teléfono (OBLIGATORIO)
+    if (!formData.telefonoContacto.trim()) {
+      newErrors.telefonoContacto = "El teléfono es obligatorio";
+    } else {
+      // Limpiar espacios para validar solo los dígitos
+      const digitsOnly = formData.telefonoContacto.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        newErrors.telefonoContacto = "El teléfono debe tener al menos 10 dígitos";
+      }
+    }
+
+    // Validación de CV (OBLIGATORIO)
+    if (!formData.cvFile) {
+      newErrors.cvFile = "El currículum vitae (PDF) es obligatorio";
+    }
+
+    // Validación de observaciones (OBLIGATORIO) - SOLO QUE NO ESTÉ VACÍO
+    if (!formData.observacion.trim()) {
+      newErrors.observacion = "Las observaciones son obligatorias";
     }
 
     setErrors(newErrors);
@@ -79,11 +134,20 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    let processedValue = value;
+    
+    // Aplicar formato especial para teléfono
+    if (name === 'telefonoContacto') {
+      processedValue = formatPhoneInput(value);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
     
+    // Limpiar error específico cuando el usuario empiece a escribir
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -121,13 +185,13 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
     setMessage("");
 
     try {
-      // Simular envío (aquí irá la llamada al API)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Llamada real al API
+      await createPostulacion(formData);
       
       setMessage("¡Postulación creada exitosamente!");
       
       setTimeout(() => {
-        if (onPostulationCreated) onPostulationCreated(formData);
+        if (onPostulationCreated) onPostulationCreated();
         if (onClose) onClose();
       }, 1500);
 
@@ -145,7 +209,7 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
       
       {/* Side Sheet */}
       <aside 
-        className="absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-white shadow-2xl animate-slide-in"
+        className="absolute right-0 top-0 h-full w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-white shadow-2xl animate-slide-in overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -167,7 +231,7 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
         </header>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="h-[calc(100%-7rem)] flex flex-col">
+        <form onSubmit={handleSubmit} className="h-[calc(100%-5rem)] flex flex-col">
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
             {message && (
               <div className={`rounded-lg border px-4 py-3 text-sm ${
@@ -196,14 +260,22 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
                 value={formData.vacanteId}
                 onChange={handleChange}
                 error={errors.vacanteId}
+                disabled={loadingVacantes}
               >
-                <option value="">Selecciona una vacante</option>
-                {availableVacancies.map(vac => (
-                  <option key={vac.id} value={vac.id}>
-                    {vac.titulo} - {vac.area}
+                <option value="">
+                  {loadingVacantes ? "Cargando vacantes..." : "Selecciona una vacante"}
+                </option>
+                {vacantes.map(vac => (
+                  <option key={vac.vacanteId} value={vac.vacanteId}>
+                    {vac.titulo} - {vac.nombreArea}
                   </option>
                 ))}
               </FormField>
+              {vacantes.length === 0 && !loadingVacantes && (
+                <p className="mt-2 text-xs text-amber-600">
+                  No hay vacantes abiertas disponibles
+                </p>
+              )}
             </section>
 
             {/* Sección: Datos del Contacto */}
@@ -223,6 +295,7 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
 
                 <FormField
                   label="Correo Electrónico"
+                  required
                   icon="mail"
                   type="email"
                   name="emailContacto"
@@ -234,11 +307,12 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
 
                 <FormField
                   label="Teléfono"
+                  required
                   icon="call"
                   name="telefonoContacto"
                   value={formData.telefonoContacto}
                   onChange={handleChange}
-                  placeholder="Ej. 771 123 4567"
+                  placeholder="Ej. 771 123 4567 o +52 771 123 4567"
                   error={errors.telefonoContacto}
                 />
               </div>
@@ -249,7 +323,7 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Currículum Vitae</h3>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  CV (PDF)
+                  CV (PDF) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -258,26 +332,49 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
                     onChange={handleFileChange}
                     className="hidden"
                     id="cv-upload"
+                    required
                   />
                   <label
                     htmlFor="cv-upload"
-                    className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
+                    className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed rounded-xl transition-colors cursor-pointer ${
+                      errors.cvFile 
+                        ? "border-red-300 bg-red-50" 
+                        : formData.cvFile 
+                        ? "border-green-300 bg-green-50" 
+                        : "border-slate-300 hover:border-blue-500 hover:bg-blue-50"
+                    }`}
                   >
-                    <span className="material-symbols-outlined text-slate-400">upload_file</span>
-                    <span className="text-sm text-slate-600">
-                      {formData.cvFile ? formData.cvFile.name : "Haz clic para adjuntar CV (PDF)"}
+                    <span className={`material-symbols-outlined ${
+                      errors.cvFile ? "text-red-400" : formData.cvFile ? "text-green-500" : "text-slate-400"
+                    }`}>
+                      {formData.cvFile ? "check_circle" : "upload_file"}
+                    </span>
+                    <span className={`text-sm ${
+                      errors.cvFile ? "text-red-600" : formData.cvFile ? "text-green-700" : "text-slate-600"
+                    }`}>
+                      {formData.cvFile 
+                        ? formData.cvFile.name 
+                        : "Haz clic para adjuntar CV (PDF) - Obligatorio"
+                      }
                     </span>
                   </label>
                 </div>
                 {errors.cvFile && (
-                  <p className="mt-1 text-xs text-red-600">{errors.cvFile}</p>
+                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">error</span>
+                    {errors.cvFile}
+                  </p>
                 )}
-                {formData.cvFile && (
+                {formData.cvFile && !errors.cvFile && (
                   <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
                     <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                    <span>Archivo cargado: {formData.cvFile.name}</span>
+                    <span>Archivo PDF cargado correctamente</span>
                   </div>
                 )}
+                <p className="mt-2 text-xs text-slate-500">
+                  • Formato aceptado: PDF<br/>
+                  • Tamaño máximo: 5MB<br/>
+                </p>
               </div>
             </section>
 
@@ -287,14 +384,24 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
               <FormField
                 as="textarea"
                 label="Observaciones"
+                required
                 icon="notes"
                 name="observacion"
                 value={formData.observacion}
                 onChange={handleChange}
                 rows="4"
-                placeholder="Notas o comentarios adicionales..."
+                placeholder="Describe su experiencia, habilidades o motivos para la postulación..."
                 className="resize-none"
+                error={errors.observacion}
               />
+              <div className="flex justify-between items-center mt-1">
+                <p className="text-xs text-slate-500">
+                  Campo obligatorio
+                </p>
+                <p className="text-xs text-slate-400">
+                  {formData.observacion.length} caracteres
+                </p>
+              </div>
             </section>
           </div>
 
@@ -310,9 +417,9 @@ export default function PostulationForm({ onClose, onPostulationCreated }) {
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || vacantes.length === 0}
               className={`px-4 py-2 rounded-lg text-white inline-flex items-center gap-2 transition-colors ${
-                submitting ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+                submitting || vacantes.length === 0 ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
               <span className="material-symbols-outlined text-[20px]">

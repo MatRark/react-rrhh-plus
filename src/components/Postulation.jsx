@@ -1,90 +1,10 @@
-// pages/Postulation.jsx
-import { useState, useMemo } from "react";
-import PostulationForm from "../components/PostulationForm";
-
-// Datos estáticos de ejemplo
-const MOCK_POSTULATIONS = [
-  {
-    id: 1,
-    nombreContacto: "María González",
-    emailContacto: "maria.gonzalez@email.com",
-    telefonoContacto: "771 123 4567",
-    vacante: "Desarrollador Full Stack",
-    area: "Tecnología",
-    estatus: "recibida",
-    fechaPostulacion: "2025-11-10",
-  },
-  {
-    id: 2,
-    nombreContacto: "Carlos Ramírez",
-    emailContacto: "carlos.ramirez@email.com",
-    telefonoContacto: "771 987 6543",
-    vacante: "Diseñador UI/UX",
-    area: "Diseño",
-    estatus: "en_revision",
-    fechaPostulacion: "2025-11-09",
-  },
-  {
-    id: 3,
-    nombreContacto: "Ana López",
-    emailContacto: "ana.lopez@email.com",
-    telefonoContacto: "771 555 1234",
-    vacante: "Gerente de Ventas",
-    area: "Ventas",
-    estatus: "entrevista",
-    fechaPostulacion: "2025-11-08",
-  },
-  {
-    id: 4,
-    nombreContacto: "Roberto Martínez",
-    emailContacto: "roberto.martinez@email.com",
-    telefonoContacto: "771 444 5678",
-    vacante: "Analista de Datos",
-    area: "Análisis",
-    estatus: "aceptada",
-    fechaPostulacion: "2025-11-05",
-  },
-  {
-    id: 5,
-    nombreContacto: "Laura Sánchez",
-    emailContacto: "laura.sanchez@email.com",
-    telefonoContacto: "771 333 9876",
-    vacante: "Desarrollador Full Stack",
-    area: "Tecnología",
-    estatus: "rechazada",
-    fechaPostulacion: "2025-11-03",
-  },
-  {
-    id: 6,
-    nombreContacto: "Pedro Hernández",
-    emailContacto: "pedro.hernandez@email.com",
-    telefonoContacto: "771 222 8765",
-    vacante: "Desarrollador Full Stack",
-    area: "Tecnología",
-    estatus: "recibida",
-    fechaPostulacion: "2025-11-03",
-  },
-  {
-    id: 7,
-    nombreContacto: "Sofía Morales",
-    emailContacto: "sofia.morales@email.com",
-    telefonoContacto: "771 111 7654",
-    vacante: "Diseñador UI/UX",
-    area: "Diseño",
-    estatus: "en_revision",
-    fechaPostulacion: "2025-11-02",
-  },
-  {
-    id: 8,
-    nombreContacto: "Diego Torres",
-    emailContacto: "diego.torres@email.com",
-    telefonoContacto: "771 888 5432",
-    vacante: "Gerente de Ventas",
-    area: "Ventas",
-    estatus: "entrevista",
-    fechaPostulacion: "2025-11-01",
-  },
-];
+// components/Postulation.jsx
+import { useState, useMemo, useEffect } from "react";
+import PostulationForm from "./PostulationForm";
+import PostulationDetailModal from "./PostulationDetailModal";
+import PostulationEditModal from "./PostulationEditModal";
+import { getPostulaciones } from "../services/postulacionesService";
+import { getVacantes } from "../services/vacantesService";
 
 const STATUS_COLORS = {
   recibida: "bg-blue-100 text-blue-800",
@@ -105,55 +25,125 @@ const STATUS_LABELS = {
 const PAGE_SIZE = 6; // Registros por página
 
 export default function Postulation() {
-  const [postulations, setPostulations] = useState(MOCK_POSTULATIONS);
+  const [postulations, setPostulations] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedPostulationId, setSelectedPostulationId] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   
   // Filtros
   const [filterStatus, setFilterStatus] = useState("");
   const [filterVacancy, setFilterVacancy] = useState("");
+  
+  // Estados de carga
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Lista de vacantes para el filtro
+  const [vacantes, setVacantes] = useState([]);
 
-  const handlePostulationCreated = (newPostulation) => {
-    console.log("Nueva postulación creada:", newPostulation);
-    setShowCreateForm(false);
-    // Aquí recargarías los datos o agregarías la nueva postulación
+  // Cargar vacantes para el dropdown de filtros
+  useEffect(() => {
+    const fetchVacantes = async () => {
+      try {
+        const data = await getVacantes();
+        // Asegurarse de que sea un array
+        const vacantesArray = Array.isArray(data) ? data : (data.data || data.items || []);
+        setVacantes(vacantesArray);
+      } catch (err) {
+        console.error("Error al cargar vacantes para filtros:", err);
+        setVacantes([]); // Asegurar que sea un array vacío en caso de error
+      }
+    };
+
+    fetchVacantes();
+  }, []);
+
+  // Cargar postulaciones
+  const fetchPostulations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Preparar filtros para el backend
+      const filters = {
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+      };
+
+      // Agregar filtros si existen
+      if (filterStatus) {
+        filters.estatus = filterStatus;
+      }
+
+      if (filterVacancy) {
+        filters.vacanteNombre = filterVacancy;
+      }
+
+      const data = await getPostulaciones(filters);
+      
+      // Asegurarse de que sea un array
+      const postulacionesArray = Array.isArray(data) ? data : (data.items || data.data || []);
+      setPostulations(postulacionesArray);
+    } catch (err) {
+      setError(err.message);
+      setPostulations([]); // Asegurar que sea un array vacío en caso de error
+      console.error("Error al cargar postulaciones:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Filtrado
+  // Cargar postulaciones al montar y cuando cambien los filtros o página
+  useEffect(() => {
+    fetchPostulations();
+  }, [currentPage, filterStatus, filterVacancy]);
+
+  const handlePostulationCreated = () => {
+    // Recargar las postulaciones después de crear una nueva
+    setCurrentPage(1); // Volver a la primera página
+    fetchPostulations();
+  };
+
+  const handlePostulationUpdated = () => {
+    // Recargar las postulaciones después de actualizar
+    fetchPostulations();
+  };
+
+  const handleViewDetails = (postulacionId) => {
+    setSelectedPostulationId(postulacionId);
+    setShowDetailModal(true);
+  };
+
+  const handleEdit = (postulacionId) => {
+    setSelectedPostulationId(postulacionId);
+    setShowEditModal(true);
+  };
+
+  // Filtrado LOCAL por búsqueda de texto (nombre o email)
   const filtered = useMemo(() => {
-    let result = postulations;
+    // Asegurarse de que postulations sea un array
+    if (!Array.isArray(postulations)) return [];
+    if (!query.trim()) return postulations;
 
-    // Búsqueda por texto
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.nombreContacto.toLowerCase().includes(q) ||
-          p.emailContacto?.toLowerCase().includes(q) ||
-          p.vacante.toLowerCase().includes(q)
-      );
-    }
+    const q = query.trim().toLowerCase();
+    return postulations.filter(
+      (p) =>
+        p.nombreContacto?.toLowerCase().includes(q) ||
+        p.emailContacto?.toLowerCase().includes(q)
+    );
+  }, [postulations, query]);
 
-    // Filtro por estatus
-    if (filterStatus) {
-      result = result.filter((p) => p.estatus === filterStatus);
-    }
-
-    // Filtro por vacante
-    if (filterVacancy) {
-      result = result.filter((p) => p.vacante === filterVacancy);
-    }
-
-    return result;
-  }, [postulations, query, filterStatus, filterVacancy]);
-
-  // Paginación
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Paginación LOCAL sobre datos ya filtrados por búsqueda
+  const totalPages = Math.max(1, Math.ceil((filtered?.length || 0) / PAGE_SIZE));
   const validCurrentPage = Math.min(currentPage, totalPages);
   const startIndex = (validCurrentPage - 1) * PAGE_SIZE;
   const endIndex = startIndex + PAGE_SIZE;
+  
   const paginatedData = useMemo(() => {
+    if (!Array.isArray(filtered)) return [];
     return filtered.slice(startIndex, endIndex);
   }, [filtered, startIndex, endIndex]);
 
@@ -180,15 +170,14 @@ export default function Postulation() {
     setCurrentPage(1);
   };
 
-  // Opciones únicas para filtros
+  // Opciones únicas para filtro de vacantes
   const vacancyOptions = useMemo(() => {
-    return ["Todas", ...Array.from(new Set(postulations.map((p) => p.vacante)))];
-  }, [postulations]);
+    return ["Todas", ...vacantes.map((v) => v.titulo)];
+  }, [vacantes]);
 
   const formatDate = (dateString) => {
     if (!dateString) return "—";
-    const [year, month, day] = dateString.split("T")[0].split("-");
-    const date = new Date(year, month - 1, day);
+    const date = new Date(dateString);
     return date.toLocaleDateString("es-MX");
   };
 
@@ -198,12 +187,10 @@ export default function Postulation() {
     const maxPagesToShow = 5;
     
     if (totalPages <= maxPagesToShow) {
-      // Mostrar todas las páginas si son pocas
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Lógica para mostrar páginas con puntos suspensivos
       if (validCurrentPage <= 3) {
         pages.push(1, 2, 3, 4, '...', totalPages);
       } else if (validCurrentPage >= totalPages - 2) {
@@ -218,7 +205,7 @@ export default function Postulation() {
 
   return (
     <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
           <div>
@@ -233,9 +220,25 @@ export default function Postulation() {
           </button>
         </div>
 
+        {/* MENSAJE DE ERROR */}
+        {error && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px]">error</span>
+              <span>{error}</span>
+              <button 
+                onClick={fetchPostulations}
+                className="ml-auto text-red-700 underline hover:text-red-800"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* FILTROS Y BÚSQUEDA */}
         <div className="mb-6 space-y-3">
-          {/* Búsqueda */}
+          {/* Búsqueda LOCAL */}
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">
               search
@@ -261,8 +264,6 @@ export default function Postulation() {
             >
               <option value="">Todos los estados</option>
               <option value="recibida">Recibida</option>
-              <option value="en_revision">En Revisión</option>
-              <option value="entrevista">Entrevista</option>
               <option value="aceptada">Aceptada</option>
               <option value="rechazada">Rechazada</option>
             </select>
@@ -302,7 +303,6 @@ export default function Postulation() {
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
                   <th className="py-3 px-4 font-semibold">Candidato</th>
-                  <th className="py-3 px-4 font-semibold">Contacto</th>
                   <th className="py-3 px-4 font-semibold">Vacante</th>
                   <th className="py-3 px-4 font-semibold">Fecha</th>
                   <th className="py-3 px-4 font-semibold">Estado</th>
@@ -311,36 +311,32 @@ export default function Postulation() {
               </thead>
 
               <tbody className="divide-y divide-slate-200">
-                {paginatedData.length === 0 && (
+                {loading && (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <td colSpan={5} className="py-8 text-center text-slate-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                        Cargando postulaciones...
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {!loading && paginatedData.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-500">
                       No se encontraron postulaciones
                     </td>
                   </tr>
                 )}
 
-                {paginatedData.map((post) => (
-                  <tr key={post.id} className="hover:bg-slate-50 transition-colors">
+                {!loading && paginatedData.map((post) => (
+                  <tr key={post.postulacionId} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-4 font-medium text-slate-800">
                       {post.nombreContacto}
                     </td>
                     <td className="py-3 px-4 text-slate-600">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1 text-xs">
-                          <span className="material-symbols-outlined text-[14px]">mail</span>
-                          {post.emailContacto}
-                        </div>
-                        <div className="flex items-center gap-1 text-xs">
-                          <span className="material-symbols-outlined text-[14px]">call</span>
-                          {post.telefonoContacto}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600">
-                      <div>
-                        <div className="font-medium">{post.vacante}</div>
-                        <div className="text-xs text-slate-500">{post.area}</div>
-                      </div>
+                      <div className="font-medium">{post.nombreVacante || post.vacante}</div>
                     </td>
                     <td className="py-3 px-4 text-slate-600">
                       {formatDate(post.fechaPostulacion)}
@@ -357,6 +353,7 @@ export default function Postulation() {
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          onClick={() => handleViewDetails(post.postulacionId)}
                           className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition"
                           title="Ver detalles"
                         >
@@ -365,8 +362,9 @@ export default function Postulation() {
                           </span>
                         </button>
                         <button
+                          onClick={() => handleEdit(post.postulacionId)}
                           className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-orange-600 transition"
-                          title="Actualizar"
+                          title="Editar estado"
                         >
                           <span className="material-symbols-outlined text-[18px]">
                             edit
@@ -381,65 +379,67 @@ export default function Postulation() {
           </div>
 
           {/* PAGINACIÓN */}
-          <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Info de registros */}
-            <div className="text-sm text-slate-600">
-              Mostrando <span className="font-semibold">{startIndex + 1}</span> a{" "}
-              <span className="font-semibold">{Math.min(endIndex, filtered.length)}</span> de{" "}
-              <span className="font-semibold">{filtered.length}</span> resultado{filtered.length !== 1 && "s"}
-            </div>
-
-            {/* Controles de paginación */}
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                {/* Botón Anterior */}
-                <button
-                  onClick={prevPage}
-                  disabled={validCurrentPage === 1}
-                  className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Anterior
-                </button>
-
-                {/* Números de página */}
-                <div className="hidden sm:flex items-center gap-1">
-                  {getPageNumbers().map((page, index) => (
-                    page === '...' ? (
-                      <span key={`ellipsis-${index}`} className="px-2 text-slate-400">
-                        ...
-                      </span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => goToPage(page)}
-                        className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${
-                          validCurrentPage === page
-                            ? "bg-blue-600 text-white"
-                            : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  ))}
-                </div>
-
-                {/* Indicador móvil de página actual */}
-                <div className="sm:hidden text-sm text-slate-600 font-medium">
-                  Página {validCurrentPage} de {totalPages}
-                </div>
-
-                {/* Botón Siguiente */}
-                <button
-                  onClick={nextPage}
-                  disabled={validCurrentPage === totalPages}
-                  className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Siguiente
-                </button>
+          {!loading && filtered.length > 0 && (
+            <div className="p-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Info de registros */}
+              <div className="text-sm text-slate-600">
+                Mostrando <span className="font-semibold">{startIndex + 1}</span> a{" "}
+                <span className="font-semibold">{Math.min(endIndex, filtered.length)}</span> de{" "}
+                <span className="font-semibold">{filtered.length}</span> resultado{filtered.length !== 1 && "s"}
               </div>
-            )}
-          </div>
+
+              {/* Controles de paginación */}
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  {/* Botón Anterior */}
+                  <button
+                    onClick={prevPage}
+                    disabled={validCurrentPage === 1}
+                    className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Anterior
+                  </button>
+
+                  {/* Números de página */}
+                  <div className="hidden sm:flex items-center gap-1">
+                    {getPageNumbers().map((page, index) => (
+                      page === '...' ? (
+                        <span key={`ellipsis-${index}`} className="px-2 text-slate-400">
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${
+                            validCurrentPage === page
+                              ? "bg-blue-600 text-white"
+                              : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    ))}
+                  </div>
+
+                  {/* Indicador móvil de página actual */}
+                  <div className="sm:hidden text-sm text-slate-600 font-medium">
+                    Página {validCurrentPage} de {totalPages}
+                  </div>
+
+                  {/* Botón Siguiente */}
+                  <button
+                    onClick={nextPage}
+                    disabled={validCurrentPage === totalPages}
+                    className="px-3 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -448,6 +448,29 @@ export default function Postulation() {
         <PostulationForm
           onClose={() => setShowCreateForm(false)}
           onPostulationCreated={handlePostulationCreated}
+        />
+      )}
+
+      {/* Modal de detalles */}
+      {showDetailModal && (
+        <PostulationDetailModal
+          postulacionId={selectedPostulationId}
+          onClose={() => {
+            setShowDetailModal(false);
+            setSelectedPostulationId(null);
+          }}
+        />
+      )}
+
+      {/* Modal de edición */}
+      {showEditModal && (
+        <PostulationEditModal
+          postulacionId={selectedPostulationId}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedPostulationId(null);
+          }}
+          onPostulationUpdated={handlePostulationUpdated}
         />
       )}
     </div>

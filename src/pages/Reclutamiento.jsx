@@ -35,6 +35,12 @@ export default function RecruitmentPanel() {
   const [loadingModal, setLoadingModal] = useState(false);
   const [activeTab, setActiveTab] = useState("vacantes");
 
+  const [filtroTitulo, setFiltroTitulo] = useState("");
+  const [filtroPuesto, setFiltroPuesto] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
+  const vacantesPorPagina = 6;
+
   const [areas, setAreas] = useState([]);
   const [puestos, setPuestos] = useState([]);
 
@@ -58,6 +64,24 @@ export default function RecruitmentPanel() {
       setVacantes([]);
     }
   };
+
+  // Filtrar vacantes
+  const vacantesFiltradas = vacantes.filter(v => {
+    const matchesTitulo = v.titulo.toLowerCase().includes(filtroTitulo.toLowerCase());
+    const matchesPuesto = !filtroPuesto || v.nombrePuesto === filtroPuesto;
+    const matchesEstado = !filtroEstado || v.estatus.toLowerCase() === filtroEstado.toLowerCase();
+    return matchesTitulo && matchesPuesto && matchesEstado;
+  });
+
+  // Paginación
+  const totalPaginas = Math.ceil(vacantesFiltradas.length / vacantesPorPagina);
+  const indiceInicio = (paginaActual - 1) * vacantesPorPagina;
+  const vacantesFiltradasPaginadas = vacantesFiltradas.slice(indiceInicio, indiceInicio + vacantesPorPagina);
+
+  // Resetear página al cambiar filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [filtroTitulo, filtroPuesto, filtroEstado]);
 
   // ABRIR MODAL PARA CREAR
   const abrirCrear = async () => {
@@ -449,8 +473,8 @@ export default function RecruitmentPanel() {
               <button
                 onClick={() => setActiveTab("vacantes")}
                 className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === "vacantes"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-slate-600 hover:text-slate-800"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-600 hover:text-slate-800"
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -462,8 +486,8 @@ export default function RecruitmentPanel() {
               <button
                 onClick={() => setActiveTab("postulaciones")}
                 className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === "postulaciones"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-slate-600 hover:text-slate-800"
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-600 hover:text-slate-800"
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -488,7 +512,83 @@ export default function RecruitmentPanel() {
                 </button>
               </div>
 
-              {/* TABLA RESPONSIVE */}
+              {/* FILTROS */}
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+                <div className="space-y-4">
+
+                  {/* BARRA DE BÚSQUEDA */}
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Buscar por título..."
+                      value={filtroTitulo}
+                      onChange={(e) => setFiltroTitulo(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+
+                  {/* SELECTS EN LÍNEA */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Filtro por Estado */}
+                    <div className="w-full sm:w-48">
+                      <select
+                        value={filtroEstado}
+                        onChange={(e) => setFiltroEstado(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer transition-all truncate"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                          backgroundPosition: "right 0.5rem center",
+                          backgroundRepeat: "no-repeat",
+                          backgroundSize: "1em"
+                        }}
+                      >
+                        <option value="">Todos los estados</option>
+                        <option value="abierta">Abierto</option>
+                        <option value="cerrada">Cerrado</option>
+                      </select>
+                    </div>
+
+                    {/* Filtro por Vacante (Puesto) */}
+                    <div className="w-full sm:w-48">
+                      <select
+                        value={filtroPuesto}
+                        onChange={(e) => setFiltroPuesto(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer transition-all truncate"
+                        style={{
+                          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                          backgroundPosition: "right 0.5rem center",
+                          backgroundRepeat: "no-repeat",
+                          backgroundSize: "1em"
+                        }}
+                      >
+                        <option value="">Todas las vacantes</option>
+                        {[...new Set(vacantes.map(v => v.nombrePuesto))].map(puesto => (
+                          <option key={puesto} value={puesto}>{puesto}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* LIMPIAR FILTROS */}
+                  {(filtroTitulo || filtroPuesto || filtroEstado) && (
+                    <button
+                      onClick={() => {
+                        setFiltroTitulo("");
+                        setFiltroPuesto("");
+                        setFiltroEstado("");
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium underline"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* TABLA CON PAGINACIÓN */}
               <div className="bg-white dark:bg-gray-900 shadow rounded-xl border overflow-x-auto">
                 <table className="w-full min-w-[640px]">
                   <thead>
@@ -502,7 +602,7 @@ export default function RecruitmentPanel() {
                     </tr>
                   </thead>
                   <tbody>
-                    {vacantes.map((v) => (
+                    {vacantesFiltradasPaginadas.map((v) => (
                       <tr key={v.vacanteId} className="border-t hover:bg-slate-50 text-xs sm:text-sm">
                         <td className="px-4 py-3">{v.titulo}</td>
                         <td className="px-4 py-3">{v.nombreArea}</td>
@@ -531,6 +631,34 @@ export default function RecruitmentPanel() {
                     ))}
                   </tbody>
                 </table>
+
+                {/* PAGINACIÓN */}
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t text-sm">
+                    <p className="text-slate-600">
+                      Mostrando <strong>{vacantesFiltradasPaginadas.length}</strong> de <strong>{vacantesFiltradas.length}</strong> vacantes
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaActual === 1}
+                        className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                      >
+                        Anterior
+                      </button>
+                      <span className="px-3 py-1">
+                        Página {paginaActual} de {totalPaginas}
+                      </span>
+                      <button
+                        onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
+                        disabled={paginaActual === totalPaginas}
+                        className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

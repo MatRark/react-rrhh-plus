@@ -320,39 +320,55 @@ export default function RecruitmentPanel() {
           {/* MODO DETALLES */}
           {modalMode === "detalles" && selectedVacante && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
-                  <p className="text-sm text-slate-500">Título</p>
-                  <p className="font-semibold">{selectedVacante.titulo}</p>
-                </div>
-                <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
-                  <p className="text-sm text-slate-500">Área</p>
-                  <p className="font-semibold">{selectedVacante.nombreArea}</p>
-                </div>
-                <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
-                  <p className="text-sm text-slate-500">Puesto</p>
-                  <p className="font-semibold">{selectedVacante.nombrePuesto}</p>
-                </div>
-                <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
-                  <p className="text-sm text-slate-500">Estado</p>
-                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-600">
-                    {selectedVacante.estatus}
-                  </span>
-                </div>
-                <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl col-span-1 sm:col-span-2">
-                  <p className="text-sm text-slate-500">Fecha de publicación</p>
-                  <p className="font-semibold">
-                    {new Date(selectedVacante.fechaPublicacion).toLocaleDateString()}
-                  </p>
-                </div>
+              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
+                <p className="text-sm text-slate-500">Título</p>
+                <p className="font-semibold">{selectedVacante.titulo}</p>
               </div>
 
-              <div>
-                <p className="text-sm text-slate-600 font-medium mb-1">Descripción</p>
-                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 min-h-[100px] whitespace-pre-wrap">
-                  {selectedVacante.descripcion || "Sin descripción"}
-                </div>
+              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
+                <p className="text-sm text-slate-500">Área</p>
+                <p className="font-semibold">{selectedVacante.nombreArea}</p>
               </div>
+
+              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
+                <p className="text-sm text-slate-500">Puesto</p>
+                <p className="font-semibold">{selectedVacante.nombrePuesto}</p>
+              </div>
+
+              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
+                <p className="text-sm text-slate-500">Estado</p>
+                <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${selectedVacante?.estatus?.toLowerCase() === 'abierta'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                  }`}>
+                  {selectedVacante?.estatus === 'abierta' ? 'Abierta' : 'Cerrada'}
+                </span>
+              </div>
+
+              {/* FECHA DE PUBLICACIÓN */}
+              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl col-span-1 sm:col-span-2">
+                <p className="text-sm text-slate-500">Fecha de publicación</p>
+                <p className="font-semibold">
+                  {new Date(selectedVacante.fechaPublicacion).toLocaleDateString('es-MX')}
+                </p>
+              </div>
+
+              {/* FECHA DE CIERRE - SOLO CUANDO ESTÁ CERRADA */}
+              {selectedVacante?.estatus?.toLowerCase() === 'cerrada' && selectedVacante?.fechaCierre && (
+                <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl col-span-1 sm:col-span-2 border-l-4 border-red-400">
+                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                    Fecha de cierre
+                  </p>
+                  <p className="font-semibold text-red-600">
+                    {new Date(selectedVacante.fechaCierre).toLocaleDateString('es-MX', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -607,8 +623,14 @@ export default function RecruitmentPanel() {
                         <td className="px-4 py-3">{v.titulo}</td>
                         <td className="px-4 py-3">{v.nombreArea}</td>
                         <td className="px-4 py-3">{v.nombrePuesto}</td>
-                        <td className="px-4 py-3 capitalize">{v.estatus}</td>
                         <td className="px-4 py-3">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${v.estatus?.toLowerCase() === 'abierta'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                            }`}>
+                            {v.estatus === 'abierta' ? 'Abierta' : 'Cerrada'}
+                          </span>
+                        </td>                         <td className="px-4 py-3">
                           {new Date(v.fechaPublicacion).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3">

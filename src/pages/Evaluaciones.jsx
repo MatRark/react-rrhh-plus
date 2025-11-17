@@ -3,12 +3,15 @@ import React, { useEffect, useState } from "react";
 import { getUserInfo } from "../services/authService";
 import { ServiceEvaluacionAdmin } from "../services/ServiceEvaluacionAdmin";
 import EmployeeEvaluations from "../components/EmployeeEvaluations";
+import VistaEvaluaciones from "../components/VistaEvaluaciones"; // Importar el nuevo componente
 
 import CrearPlantillaModal from "../components/CrearPlantillaModal";
 import DetallePlantillaModal from "../components/DetallePlantillaModal";
 
 // Vista para Admin/Evaluador
 function AdminEvaluationsView() {
+  const [activeTab, setActiveTab] = useState("plantillas"); // Estado para el tab activo
+  
   const [plantillas, setPlantillas] = useState([]);
   const [indicadores, setIndicadores] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -50,8 +53,10 @@ function AdminEvaluationsView() {
   }, []);
 
   useEffect(() => {
-    cargarPlantillas();
-  }, [filtros]);
+    if (activeTab === "plantillas") {
+      cargarPlantillas();
+    }
+  }, [filtros, activeTab]);
 
   // =================== ACCIONES ===================
 
@@ -94,127 +99,211 @@ function AdminEvaluationsView() {
 
   // =================== UI ===================
   return (
-    <div className="p-10">
-
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-black">Plantillas de Evaluación</h1>
-          <p className="text-gray-500">Crea, edita y administra plantillas.</p>
+    <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Sistema de Evaluaciones</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Gestiona plantillas y evaluaciones de desempeño.
+          </p>
         </div>
 
-        <button
-          onClick={abrirCrear}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-semibold shadow-sm transition"
-        >
-          <span className="material-symbols-outlined">add</span>
-          Nueva plantilla
-        </button>
-      </div>
+        {/* Tabs - Similar al componente de Asistencias */}
+        <div className="mb-6">
+          <div className="border-b border-slate-200">
+            <nav className="flex gap-4">
+              <button
+                onClick={() => setActiveTab("plantillas")}
+                className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === "plantillas"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px]">
+                    description
+                  </span>
+                  Plantillas
+                </div>
+              </button>
 
-      {/* Filtros */}
-      <div className="flex gap-4 mb-6">
+              <button
+                onClick={() => setActiveTab("evaluaciones")}
+                className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === "evaluaciones"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px]">
+                    analytics
+                  </span>
+                  Evaluaciones
+                </div>
+              </button>
+            </nav>
+          </div>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Buscar plantilla..."
-          value={filtros.search}
-          onChange={(e) => setFiltros({ ...filtros, search: e.target.value })}
-          className="px-4 py-2 rounded-lg border w-full"
-        />
+        {/* Contenido según el tab activo */}
+        <div>
+          {activeTab === "plantillas" ? (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              {/* Header de Plantillas */}
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800">Plantillas de Evaluación</h2>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Crea, edita y administra plantillas de evaluación.
+                  </p>
+                </div>
 
-        <select
-          value={filtros.area_id}
-          onChange={(e) => setFiltros({ ...filtros, area_id: e.target.value })}
-          className="px-4 py-2 rounded-lg border"
-        >
-          <option value="">Todas las áreas</option>
-          {areas.map(a => (
-            <option key={a.area_id} value={a.area_id}>{a.nombre}</option>
-          ))}
-        </select>
-
-        <select
-          value={filtros.vigente}
-          onChange={(e) => setFiltros({ ...filtros, vigente: e.target.value === "true" })}
-          className="px-4 py-2 rounded-lg border"
-        >
-          <option value="true">Vigentes</option>
-          <option value="false">Inactivas</option>
-        </select>
-      </div>
-
-      {/* Tabla */}
-      <table className="w-full border-collapse bg-white shadow-sm rounded-xl overflow-hidden">
-        <thead className="bg-gray-100 text-gray-600">
-          <tr>
-            <th className="p-3 text-left">Nombre</th>
-            <th className="p-3 text-left">Área</th>
-            <th className="p-3 text-left">Periodo</th>
-            <th className="p-3 text-left">Vigente</th>
-            <th className="p-3 text-center">Acciones</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {plantillasFiltradas.map((p) => (
-            <tr key={p.plantilla_id} className="border-t">
-              <td className="p-3">{p.nombre}</td>
-              <td className="p-3">{p.nombre_area}</td>
-              <td className="p-3">{p.periodo_inicio} — {p.periodo_fin}</td>
-
-              <td className="p-3">
-                <input
-                  type="checkbox"
-                  checked={p.vigente}
-                  onChange={(e) => cambiarVigencia(p.plantilla_id, e.target.checked)}
-                />
-              </td>
-
-              <td className="p-3 flex gap-4 justify-center">
-
-                {/* Ojo */}
-                <span
-                  onClick={() => abrirVer(p)}
-                  className="material-symbols-outlined cursor-pointer text-[22px] text-blue-600 hover:text-blue-800 transition"
+                <button
+                  onClick={abrirCrear}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                 >
-                  visibility
-                </span>
+                  <span className="material-symbols-outlined text-[20px]">add</span>
+                  Nueva plantilla
+                </button>
+              </div>
 
-                {/* Lápiz */}
-                <span
-                  onClick={() => abrirEditar(p)}
-                  className="material-symbols-outlined cursor-pointer text-[22px] text-amber-600 hover:text-amber-700 transition"
+              {/* Filtros */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Buscar plantilla..."
+                      value={filtros.search}
+                      onChange={(e) => setFiltros({ ...filtros, search: e.target.value })}
+                      className="pl-10 pr-3 py-2 rounded-lg border border-slate-300 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <select
+                  value={filtros.area_id}
+                  onChange={(e) => setFiltros({ ...filtros, area_id: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  edit
-                </span>
+                  <option value="">Todas las áreas</option>
+                  {areas.map(a => (
+                    <option key={a.area_id} value={a.area_id}>{a.nombre}</option>
+                  ))}
+                </select>
 
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <select
+                  value={filtros.vigente}
+                  onChange={(e) => setFiltros({ ...filtros, vigente: e.target.value === "true" })}
+                  className="px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="true">Vigentes</option>
+                  <option value="false">Inactivas</option>
+                </select>
+              </div>
 
-      {/* Modal Crear/Editar */}
-      {openCrear && (
-        <CrearPlantillaModal
-          modo={modo}
-          plantilla={plantillaSeleccionada}
-          indicadores={indicadores}
-          areas={areas}
-          onClose={() => setOpenCrear(false)}
-          onSave={guardarPlantilla}
-        />
-      )}
+              {/* Tabla de Plantillas */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th className="py-3 px-4 text-left font-semibold">Nombre</th>
+                      <th className="py-3 px-4 text-left font-semibold">Área</th>
+                      <th className="py-3 px-4 text-left font-semibold">Periodo</th>
+                      <th className="py-3 px-4 text-left font-semibold">Vigente</th>
+                      <th className="py-3 px-4 text-center font-semibold">Acciones</th>
+                    </tr>
+                  </thead>
 
-      {/* Modal Detalle */}
-      {openDetalle && plantillaSeleccionada && (
-        <DetallePlantillaModal
-          plantilla={plantillaSeleccionada}
-          onClose={() => setOpenDetalle(false)}
-        />
-      )}
+                  <tbody className="divide-y divide-slate-200">
+                    {plantillasFiltradas.map((p) => (
+                      <tr key={p.plantilla_id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-medium text-slate-800">{p.nombre}</td>
+                        <td className="py-3 px-4 text-slate-600">{p.nombre_area}</td>
+                        <td className="py-3 px-4 text-slate-600">{p.periodo_inicio} — {p.periodo_fin}</td>
 
+                        <td className="py-3 px-4">
+                          <input
+                            type="checkbox"
+                            checked={p.vigente}
+                            onChange={(e) => cambiarVigencia(p.plantilla_id, e.target.checked)}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                          />
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-center gap-3">
+                            <button
+                              onClick={() => abrirVer(p)}
+                              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition-colors"
+                              title="Ver detalles"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                visibility
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => abrirEditar(p)}
+                              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-amber-600 transition-colors"
+                              title="Editar"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                edit
+                              </span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mensaje si no hay plantillas */}
+              {plantillasFiltradas.length === 0 && (
+                <div className="text-center py-8 text-slate-500">
+                  <span className="material-symbols-outlined text-4xl text-slate-300 mb-3">
+                    description
+                  </span>
+                  <p>No se encontraron plantillas</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Vista de Evaluaciones */
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <VistaEvaluaciones />
+            </div>
+          )}
+        </div>
+
+        {/* Modal Crear/Editar */}
+        {openCrear && (
+          <CrearPlantillaModal
+            modo={modo}
+            plantilla={plantillaSeleccionada}
+            indicadores={indicadores}
+            areas={areas}
+            onClose={() => setOpenCrear(false)}
+            onSave={guardarPlantilla}
+          />
+        )}
+
+        {/* Modal Detalle */}
+        {openDetalle && plantillaSeleccionada && (
+          <DetallePlantillaModal
+            plantilla={plantillaSeleccionada}
+            onClose={() => setOpenDetalle(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }

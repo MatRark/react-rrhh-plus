@@ -1,50 +1,42 @@
 // components/EmployeeEvaluations.jsx
 import { useState, useEffect } from "react";
-import { getMyEvaluations, getEvaluationDetail } from "../services/evaluationService";
+import { getMyEvaluations } from "../services/evaluationService";
 
 const NIVEL_COLORS = {
-  Excelente: "text-green-700 bg-green-100",
-  Bueno: "text-green-700 bg-green-100",
-  Regular: "text-yellow-700 bg-yellow-100",
-  Deficiente: "text-red-700 bg-red-100",
+  Excelente: "bg-green-100 text-green-800",
+  Bueno: "bg-green-100 text-green-800", 
+  Regular: "bg-yellow-100 text-yellow-800",
+  Deficiente: "bg-red-100 text-red-800",
 };
 
 const ESTATUS_COLORS = {
-  en_proceso: "text-blue-700 bg-blue-100",
-  cerrada: "text-slate-700 bg-slate-100",
+  en_proceso: "bg-blue-100 text-blue-800",
+  cerrada: "bg-slate-100 text-slate-800",
 };
 
 const ESTATUS_LABELS = {
   en_proceso: "En Proceso",
-  cerrada: "Cerrada",
+  cerrada: "Completada",
 };
 
 export default function EmployeeEvaluations() {
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  
-  // Modal de detalle
-  const [selectedEvaluation, setSelectedEvaluation] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     loadEvaluations();
-  }, [filterStatus]);
+  }, []);
 
   const loadEvaluations = async () => {
     setLoading(true);
     setError("");
     try {
-      const filters = {};
-      if (filterStatus) filters.estatus = filterStatus;
-      
-      const data = await getMyEvaluations(filters);
+      const data = await getMyEvaluations();
+      console.log("📥 Evaluaciones recibidas:", data);
       setEvaluations(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error al cargar evaluaciones:", err);
       setError(err.message || "Error al cargar evaluaciones");
       setEvaluations([]);
     } finally {
@@ -52,341 +44,292 @@ export default function EmployeeEvaluations() {
     }
   };
 
-  const handleViewDetail = async (evaluacionId) => {
-    setDetailLoading(true);
-    setShowDetailModal(true);
-    try {
-      const detail = await getEvaluationDetail(evaluacionId);
-      setSelectedEvaluation(detail);
-    } catch (err) {
-      console.error("Error al cargar detalle:", err);
-      setError(err.message);
-    } finally {
-      setDetailLoading(false);
+  // Función para determinar el estado de la evaluación
+  const getEvaluationStatus = (evaluation) => {
+    if (!evaluation.puntajeTotal && !evaluation.nivelDesempeno) {
+      return "pending";
     }
+    if (evaluation.estatus === "cerrada" && evaluation.puntajeTotal && evaluation.nivelDesempeno) {
+      return "completed";
+    }
+    return "in_progress";
   };
 
-  const closeModal = () => {
-    setShowDetailModal(false);
-    setSelectedEvaluation(null);
+  // Formatear fecha
+  const formatDate = (dateString) => {
+    if (!dateString) return "—";
+    return new Date(dateString).toLocaleDateString("es-MX", {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
-  return (
-    <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Mis Evaluaciones</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Consulta tu historial de evaluaciones, puntajes y retroalimentación.
-          </p>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FB] flex items-center justify-center">
+        <div className="text-center">
+          <span className="material-symbols-outlined text-5xl text-blue-600 animate-spin">
+            refresh
+          </span>
+          <p className="mt-4 text-slate-600">Cargando tus evaluaciones...</p>
         </div>
+      </div>
+    );
+  }
 
-        {/* Filtros */}
-        <div className="mb-6">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Todos los estados</option>
-            <option value="en_proceso">En Proceso</option>
-            <option value="cerrada">Cerradas</option>
-          </select>
-
-          {filterStatus && (
-            <button
-              onClick={() => setFilterStatus("")}
-              className="ml-3 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm"
-            >
-              Limpiar filtro
-            </button>
-          )}
-        </div>
-
-        {/* Tabla */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="py-3 px-4 font-semibold">Plantilla</th>
-                  <th className="py-3 px-4 font-semibold">Área</th>
-                  <th className="py-3 px-4 font-semibold">Puntaje Total</th>
-                  <th className="py-3 px-4 font-semibold">Nivel</th>
-                  <th className="py-3 px-4 font-semibold">Estatus</th>
-                  <th className="py-3 px-4 font-semibold text-right">Acciones</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-200">
-                {loading && (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="material-symbols-outlined animate-spin">
-                          refresh
-                        </span>
-                        Cargando evaluaciones...
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {!loading && error && (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-red-600">
-                      {error}
-                    </td>
-                  </tr>
-                )}
-
-                {!loading && !error && evaluations.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
-                      <div className="flex flex-col items-center gap-3">
-                        <span className="material-symbols-outlined text-5xl text-slate-300">
-                          assignment
-                        </span>
-                        <p className="font-medium">Aún no tienes evaluaciones registradas</p>
-                        <p className="text-sm text-slate-400">
-                          Cuando se te asigne una evaluación, aparecerá aquí.
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {!loading &&
-                  !error &&
-                  evaluations.map((evaluation) => (
-                    <tr key={evaluation.evaluacionId} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-slate-800">
-                        {evaluation.plantilla || evaluation.nombrePlantilla || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">
-                        {evaluation.nombreArea || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-slate-800 font-semibold">
-                        {evaluation.puntajeTotal ? evaluation.puntajeTotal.toFixed(1) : "—"}
-                      </td>
-                      <td className="py-3 px-4">
-                        {evaluation.nivelDesempeno ? (
-                          <span
-                            className={`px-3 py-1 text-xs font-medium rounded-full ${
-                              NIVEL_COLORS[evaluation.nivelDesempeno] || "bg-slate-100 text-slate-700"
-                            }`}
-                          >
-                            {evaluation.nivelDesempeno}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-3 py-1 text-xs font-medium rounded-full ${
-                            ESTATUS_COLORS[evaluation.estatus] || "bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {ESTATUS_LABELS[evaluation.estatus] || evaluation.estatus}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleViewDetail(evaluation.evaluacionId)}
-                          className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-blue-600 transition"
-                          title="Ver detalles"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            visibility
-                          </span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+  // Si no hay evaluaciones
+  if (!loading && evaluations.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12">
+              <div className="flex flex-col items-center gap-4">
+                <span className="material-symbols-outlined text-6xl text-slate-300">
+                  assignment
+                </span>
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-700 mb-2">
+                    Aún no tienes evaluaciones asignadas
+                  </h2>
+                  <p className="text-slate-500 max-w-md mx-auto">
+                    Tu evaluación de desempeño será asignada próximamente por el área de Recursos Humanos. 
+                    Recibirás una notificación cuando esté disponible.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Modal de Detalle */}
-      {showDetailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={closeModal}
-          />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex items-center justify-between">
+  // Mostrar la primera evaluación (asumiendo que solo hay una por empleado)
+  const evaluation = evaluations[0];
+  const status = getEvaluationStatus(evaluation);
+
+  return (
+    <div className="min-h-screen bg-[#F5F7FB] text-slate-800">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Mi Evaluación de Desempeño</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Consulta el estado y resultados de tu evaluación
+          </p>
+        </div>
+
+        {/* Tarjeta de Evaluación */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Header de la evaluación */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-3xl">analytics</span>
               <div>
-                <h2 className="text-xl font-semibold">Detalle de Evaluación</h2>
-                <p className="text-white/80 text-sm mt-1">Información completa</p>
+                <h2 className="text-2xl font-bold">{evaluation.nombrePlantilla}</h2>
+                <p className="text-white/80 text-sm mt-1">
+                  Evaluación de desempeño profesional
+                </p>
               </div>
-              <button
-                onClick={closeModal}
-                className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
             </div>
+            <span
+              className={`px-4 py-2 rounded-full font-semibold text-sm ${
+                ESTATUS_COLORS[evaluation.estatus] || "bg-white/20 text-white"
+              }`}
+            >
+              {ESTATUS_LABELS[evaluation.estatus] || evaluation.estatus}
+            </span>
+          </div>
 
-            {/* Content */}
-            <div className="p-6">
-              {detailLoading && (
-                <div className="flex items-center justify-center py-12">
-                  <span className="material-symbols-outlined animate-spin text-4xl text-blue-600">
-                    refresh
-                  </span>
+          {/* Contenido de la evaluación */}
+          <div className="p-6 space-y-6">
+            {/* Información General */}
+            <section>
+              <h3 className="text-sm font-semibold mb-4 text-slate-700 flex items-center gap-2">
+                <span className="material-symbols-outlined text-blue-600">info</span>
+                Información General
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-4 rounded-lg">
+                  <p className="text-xs text-slate-500 mb-1">Área</p>
+                  <p className="text-lg font-semibold text-slate-800">
+                    {evaluation.nombreArea || "—"}
+                  </p>
                 </div>
-              )}
+                <div className="bg-slate-50 p-4 rounded-lg">
+                  <p className="text-xs text-slate-500 mb-1">Empleado</p>
+                  <p className="text-lg font-semibold text-slate-800">
+                    {evaluation.nombreEmpleado || "—"}
+                  </p>
+                </div>
+              </div>
+            </section>
 
-              {!detailLoading && selectedEvaluation && (
-                <div className="space-y-6">
-                  {/* Información General */}
-                  <section>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                      Información General
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-slate-50 rounded-lg p-4">
-                        <p className="text-xs text-slate-500 mb-1">Plantilla</p>
-                        <p className="font-medium text-slate-800">
-                          {selectedEvaluation.plantilla}
-                        </p>
-                      </div>
-                      <div className="bg-slate-50 rounded-lg p-4">
-                        <p className="text-xs text-slate-500 mb-1">Área</p>
-                        <p className="font-medium text-slate-800">
-                          {selectedEvaluation.nombreArea}
+            {/* Estado de la Evaluación */}
+            {status === "pending" && (
+              <section>
+                <h3 className="text-sm font-semibold mb-4 text-slate-700 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-600">schedule</span>
+                  Estado Actual
+                </h3>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <span className="material-symbols-outlined text-2xl text-amber-600 mt-1">
+                      pending_actions
+                    </span>
+                    <div>
+                      <h4 className="font-semibold text-amber-800 text-lg mb-2">
+                        Evaluación Pendiente
+                      </h4>
+                      <p className="text-amber-700">
+                        Tu evaluación está en proceso de revisión. El área de Recursos Humanos 
+                        está trabajando en tu evaluación de desempeño. Los resultados estarán 
+                        disponibles una vez que el proceso sea completado.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {status === "in_progress" && (
+              <section>
+                <h3 className="text-sm font-semibold mb-4 text-slate-700 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-600">trending_up</span>
+                  Progreso Actual
+                </h3>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <span className="material-symbols-outlined text-2xl text-blue-600 mt-1">
+                      analytics
+                    </span>
+                    <div>
+                      <h4 className="font-semibold text-blue-800 text-lg mb-2">
+                        Evaluación en Proceso
+                      </h4>
+                      <p className="text-blue-700">
+                        Tu evaluación está siendo analizada. El proceso de evaluación 
+                        se encuentra en etapa de revisión final. Pronto podrás ver 
+                        tus resultados completos.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Resultados - Solo mostrar si la evaluación está completada */}
+            {status === "completed" && (
+              <section>
+                <h3 className="text-sm font-semibold mb-4 text-slate-700 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-green-600">emoji_events</span>
+                  Resultados Finales
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Puntaje Total */}
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="material-symbols-outlined text-2xl">score</span>
+                      <div>
+                        <p className="text-blue-100 text-sm">Puntaje Total</p>
+                        <p className="text-3xl font-bold">
+                          {evaluation.puntajeTotal?.toFixed(1) || "0.0"}
                         </p>
                       </div>
                     </div>
-                  </section>
+                    <p className="text-blue-100 text-xs">
+                      Puntuación obtenida en tu evaluación
+                    </p>
+                  </div>
 
-                  {/* Resultados */}
-                  {selectedEvaluation.estatus === "cerrada" && (
-                    <section>
-                      <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                        Resultados
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                          <p className="text-xs text-blue-700 mb-1">Puntaje Total</p>
-                          <p className="text-2xl font-bold text-blue-800">
-                            {selectedEvaluation.puntajeTotal?.toFixed(1)}
-                          </p>
-                        </div>
-                        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                          <p className="text-xs text-green-700 mb-1">
-                            Nivel de Desempeño
-                          </p>
-                          <p className="text-2xl font-bold text-green-800">
-                            {selectedEvaluation.nivelDesempeno}
-                          </p>
-                        </div>
-                      </div>
-                    </section>
-                  )}
-
-                  {/* Retroalimentación */}
-                  {selectedEvaluation.retroalimentacion && (
-                    <section>
-                      <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                        Retroalimentación General
-                      </h3>
-                      <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                        <p className="text-slate-700">
-                          {selectedEvaluation.retroalimentacion}
+                  {/* Nivel de Desempeño */}
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="material-symbols-outlined text-2xl">workspace_premium</span>
+                      <div>
+                        <p className="text-green-100 text-sm">Nivel de Desempeño</p>
+                        <p className="text-3xl font-bold">
+                          {evaluation.nivelDesempeno || "—"}
                         </p>
                       </div>
-                    </section>
-                  )}
-
-                  {/* Detalle de Indicadores */}
-                  {selectedEvaluation.detalle && selectedEvaluation.detalle.length > 0 && (
-                    <section>
-                      <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                        Detalle por Indicador
-                      </h3>
-                      <div className="border border-slate-200 rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-slate-50">
-                            <tr>
-                              <th className="py-3 px-4 text-left font-semibold text-slate-700">
-                                Indicador
-                              </th>
-                              <th className="py-3 px-4 text-center font-semibold text-slate-700">
-                                Ponderación (%)
-                              </th>
-                              <th className="py-3 px-4 text-center font-semibold text-slate-700">
-                                Calificación
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200">
-                            {selectedEvaluation.detalle.map((item, index) => (
-                              <tr key={index} className="hover:bg-slate-50">
-                                <td className="py-3 px-4 text-slate-800">
-                                  {item.indicador}
-                                </td>
-                                <td className="py-3 px-4 text-center text-slate-600">
-                                  {item.ponderacion}%
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  {item.calificacion !== null ? (
-                                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-800 font-bold">
-                                      {item.calificacion}
-                                    </span>
-                                  ) : (
-                                    <span className="text-slate-400">—</span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  )}
-
-                  {/* Nota si está en proceso */}
-                  {selectedEvaluation.estatus === "en_proceso" && (
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                      <div className="flex items-start gap-3">
-                        <span className="material-symbols-outlined text-blue-600">
-                          info
-                        </span>
-                        <div>
-                          <p className="font-medium text-blue-800">
-                            Evaluación en proceso
-                          </p>
-                          <p className="text-sm text-blue-700 mt-1">
-                            Esta evaluación aún no ha sido completada. Los resultados
-                            estarán disponibles una vez que sea cerrada.
-                          </p>
-                        </div>
-                      </div>
                     </div>
-                  )}
+                    <p className="text-green-100 text-xs">
+                      Evaluación de tu desempeño general
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Footer */}
-            <div className="sticky bottom-0 border-t bg-white p-4 flex justify-end">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors"
-              >
-                Cerrar
-              </button>
+                {/* Interpretación del Nivel */}
+                {evaluation.nivelDesempeno && (
+                  <div className="mt-4">
+                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+                      NIVEL_COLORS[evaluation.nivelDesempeno] || "bg-slate-100 text-slate-700"
+                    }`}>
+                      <span className="material-symbols-outlined text-[18px]">
+                        {evaluation.nivelDesempeno === "Excelente" ? "star" : 
+                         evaluation.nivelDesempeno === "Bueno" ? "thumb_up" :
+                         evaluation.nivelDesempeno === "Regular" ? "adjust" : "warning"}
+                      </span>
+                      <span className="font-semibold">
+                        {evaluation.nivelDesempeno === "Excelente" ? "¡Desempeño Excepcional!" :
+                         evaluation.nivelDesempeno === "Bueno" ? "Buen Desempeño" :
+                         evaluation.nivelDesempeno === "Regular" ? "Desempeño Satisfactorio" : 
+                         "Áreas de Oportunidad Identificadas"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Información Adicional */}
+            <section>
+              <h3 className="text-sm font-semibold mb-4 text-slate-700 flex items-center gap-2">
+                <span className="material-symbols-outlined text-slate-600">description</span>
+                Detalles del Proceso
+              </h3>
+              <div className="bg-slate-50 rounded-xl p-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                    <span className="text-slate-600">Estado del Proceso:</span>
+                    <span className="font-semibold text-slate-800">
+                      {status === "pending" ? "Pendiente de Inicio" :
+                       status === "in_progress" ? "En Revisión" : "Completado"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                    <span className="text-slate-600">Plantilla de Evaluación:</span>
+                    <span className="font-semibold text-slate-800">
+                      {evaluation.nombrePlantilla}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-slate-600">Área Responsable:</span>
+                    <span className="font-semibold text-slate-800">
+                      {evaluation.nombreArea}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Mensaje Informativo */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-outlined text-slate-500 mt-0.5">info</span>
+                <div>
+                  <p className="text-sm text-slate-700">
+                    <strong>Nota:</strong> Para cualquier duda o aclaración sobre tu evaluación, 
+                    comunícate con el área de Recursos Humanos.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

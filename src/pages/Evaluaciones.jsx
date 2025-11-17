@@ -1,11 +1,14 @@
-// src/pages/Evaluaciones.jsx
+// pages/Evaluaciones.jsx
 import React, { useEffect, useState } from "react";
+import { getUserInfo } from "../services/authService";
 import { ServiceEvaluacionAdmin } from "../services/ServiceEvaluacionAdmin";
+import EmployeeEvaluations from "../components/EmployeeEvaluations";
 
 import CrearPlantillaModal from "../components/CrearPlantillaModal";
 import DetallePlantillaModal from "../components/DetallePlantillaModal";
 
-const Evaluaciones = () => {
+// Vista para Admin/Evaluador
+function AdminEvaluationsView() {
   const [plantillas, setPlantillas] = useState([]);
   const [indicadores, setIndicadores] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -214,6 +217,17 @@ const Evaluaciones = () => {
 
     </div>
   );
-};
+}
 
-export default Evaluaciones;
+// Componente principal con router por roles
+export default function Evaluaciones() {
+  const { roles } = getUserInfo();
+
+  // Determinar si el usuario es empleado (solo empleado, sin otros roles de admin)
+  const isEmployee = roles?.includes("empleado") && 
+                     !roles?.includes("admin") && 
+                     !roles?.includes("evaluador");
+
+  // Mostrar vista según el rol
+  return isEmployee ? <EmployeeEvaluations /> : <AdminEvaluationsView />;
+}

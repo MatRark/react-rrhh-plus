@@ -8,7 +8,7 @@ export default function SuccessModal() {
   useEffect(() => {
     const timer = setTimeout(() => {
       navigate("/home");
-    }, 2000); // 1.3 segundos
+    }, 1500); // 1.3 segundos
 
     return () => clearTimeout(timer);
   }, [navigate]);

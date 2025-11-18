@@ -65,17 +65,6 @@ function AdminEvaluationsView() {
     setPlantillaSeleccionada(null);
     setOpenCrear(true);
   };
-
-  const abrirEditar = async (p) => {
-    setModo("editar");
-
-    // obtener detalle completo antes de editar
-    const detalle = await ServiceEvaluacionAdmin.getPlantillaById(p.plantilla_id);
-
-    setPlantillaSeleccionada(detalle);
-    setOpenCrear(true);
-  };
-
   const abrirVer = async (p) => {
     const detalle = await ServiceEvaluacionAdmin.getPlantillaById(p.plantilla_id);
     setPlantillaSeleccionada(detalle);
@@ -246,16 +235,6 @@ function AdminEvaluationsView() {
                             >
                               <span className="material-symbols-outlined text-[18px]">
                                 visibility
-                              </span>
-                            </button>
-
-                            <button
-                              onClick={() => abrirEditar(p)}
-                              className="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-amber-600 transition-colors"
-                              title="Editar"
-                            >
-                              <span className="material-symbols-outlined text-[18px]">
-                                edit
                               </span>
                             </button>
                           </div>

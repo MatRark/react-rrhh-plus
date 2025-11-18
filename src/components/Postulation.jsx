@@ -61,40 +61,29 @@ export default function Postulation() {
     fetchVacantes();
   }, []);
 
-  // Cargar postulaciones
-  const fetchPostulations = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+const fetchPostulations = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      // Preparar filtros para el backend
-      const filters = {
-        page: currentPage,
-        pageSize: PAGE_SIZE,
-      };
+    // NO enviar page ni pageSize
+    const filters = {};
+    
+    if (filterStatus) filters.estatus = filterStatus;
+    if (filterVacancy) filters.vacanteNombre = filterVacancy;
 
-      // Agregar filtros si existen
-      if (filterStatus) {
-        filters.estatus = filterStatus;
-      }
+    const data = await getPostulaciones(filters);
+    const postulacionesArray = Array.isArray(data) ? data : (data.items || data.data || []);
+    setPostulations(postulacionesArray); // TODOS los registros
+  } catch (err) {
+    setError(err.message);
+    setPostulations([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
-      if (filterVacancy) {
-        filters.vacanteNombre = filterVacancy;
-      }
-
-      const data = await getPostulaciones(filters);
-      
-      // Asegurarse de que sea un array
-      const postulacionesArray = Array.isArray(data) ? data : (data.items || data.data || []);
-      setPostulations(postulacionesArray);
-    } catch (err) {
-      setError(err.message);
-      setPostulations([]); // Asegurar que sea un array vacío en caso de error
-      console.error("Error al cargar postulaciones:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+// El resto del código de paginación local queda igual
 
   // Cargar postulaciones al montar y cuando cambien los filtros o página
   useEffect(() => {

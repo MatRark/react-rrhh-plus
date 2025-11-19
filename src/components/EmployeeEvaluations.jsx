@@ -94,8 +94,8 @@ export default function EmployeeEvaluations() {
                     Aún no tienes evaluaciones asignadas
                   </h2>
                   <p className="text-slate-500 max-w-md mx-auto">
-                    Tu evaluación de desempeño será asignada próximamente por el área de Recursos Humanos. 
-                    Recibirás una notificación cuando esté disponible.
+                    Tu evaluación de desempeño será asignada próximamente por el área de Recursos Humanos.<br></br> 
+                    Te contactaremos cuando sea momento de realizar tu evaluación..
                   </p>
                 </div>
               </div>

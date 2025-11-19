@@ -745,7 +745,7 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
               </form>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <Info label="ID" value={detail.id} />
+                {/*<Info label="ID" value={detail.id} />*/}
                 <Info label="Nombre" value={detail.nombre} />
                 <Info label="Correo" value={detail.email || detail.correo} />
                 <Info label="Teléfono" value={detail.telefono || "—"} />

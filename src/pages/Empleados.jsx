@@ -52,7 +52,7 @@ async function fetchJSON(url, options = {}) {
 
 function safeString(v, def = "") { return (v ?? def) + ""; }
 function isPositiveInt(v) { const n = Number(v); return Number.isInteger(n) && n > 0; }
-function isEmail(v) {return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || "").trim());}
+function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v || "").trim()); }
 function isPhone(v) { return /^\+?\d[\d\s-]{6,}$/.test(String(v || "").trim()); }
 function isDateISO(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")); }
 
@@ -309,8 +309,8 @@ function AddEmployeeSheet({ open, onClose, onCreate }) {
   function validate() {
     const e = {};
     if (!form.nombre.trim()) e.nombre = "El nombre es obligatorio";
-  const email = String(form.email || "").trim();
-  if (!isEmail(email)) e.email = "Correo inválido";    if (form.telefono && !isPhone(form.telefono)) e.telefono = "Teléfono inválido";
+    const email = String(form.email || "").trim();
+    if (!isEmail(email)) e.email = "Correo inválido"; if (form.telefono && !isPhone(form.telefono)) e.telefono = "Teléfono inválido";
     if (form.fechaIngreso && !isDateISO(form.fechaIngreso)) e.fechaIngreso = "Fecha inválida (AAAA-MM-DD)";
     if (!isPositiveInt(form.areaId)) e.areaId = "Área inválido";
     if (!isPositiveInt(form.puestoId)) e.puestoId = "Puesto inválido";
@@ -1026,14 +1026,29 @@ export default function EmployeeTable() {
     const row = data.find((x) => x.id === id);
     setConfirmDel({ open: true, id, name: row?.name || "" });
   }
+  
   async function doDelete() {
     const { id, name } = confirmDel;
-    setConfirmDel((c) => ({ ...c, open: false }));
-    await fetchJSON(`${API.base}/${id}`, { method: "DELETE", headers: { ...ACCEPT_JSON, ...authHeaders() } });
-    setData((prev) => prev.filter((x) => x.id !== id));
-    if (selectedId === id) { setSelectedId(null); setDetailOpen(false); }
-    setToast({ open: true, text: `Empleado "${name}" eliminado`, kind: "success" });
+
+    setConfirmDel({ open: false, id: null, name: "" });
+
+    await fetchJSON(`${API.base}/${id}`, {
+      method: "DELETE",
+      headers: { ...ACCEPT_JSON, ...authHeaders() }
+    });
+
+    // recarga toda la lista del backend
+    await reloadList();
+
+    setPage(1);
+
+    setToast({
+      open: true,
+      text: `Empleado "${name}" eliminado`,
+      kind: "success"
+    });
   }
+
 
   // Búsqueda + filtros
   const filtered = useMemo(() => {

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 /* =====================================================
-   CONFIG / HELPERS (reutilizables y robustos)
+   CONFIG / HELPERS
 ===================================================== */
 const API = {
   base: "https://rhplus.somee.com/api/Employees",
@@ -536,7 +536,7 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
   const [err, setErr] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // ---- catálogos (mismo patrón que en AddEmployeeSheet)
+  // Catálogos
   const [areas, setAreas] = useState([]);
   const [turnos, setTurnos] = useState([]);
   const [puestos, setPuestos] = useState([]);
@@ -544,29 +544,16 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
   const [optLoading, setOptLoading] = useState(false);
   const [optError, setOptError] = useState("");
 
-  useEffect(() => {
-    if (open) { setEditMode(false); setBusy(false); setErr(""); setFieldErrors({}); }
-  }, [open]);
-
-  // normalizador defensivo (Id/Nombre y soporta variantes)
+  // Normalizador universal
   function toIdName(list = []) {
     return list.map((it) => {
-      if (typeof it === "number" || (typeof it === "string" && /^\d+$/.test(it))) {
-        const id = String(it);
-        return { id, name: id, areaId: null };
-      }
-      const id =
-        it?.Id ?? it?.ID ?? it?.id ??
-        it?.areaId ?? it?.puestoId ?? it?.turnoId ?? it?.estatusId ?? it?.value ?? "";
-      const name =
-        it?.Nombre ?? it?.nombre ?? it?.Name ?? it?.name ??
-        it?.Titulo ?? it?.titulo ?? it?.Descripcion ?? it?.descripcion ?? String(id);
+      const id = String(it?.Id ?? it?.id ?? it?.area_id ?? it?.puesto_id ?? it?.turno_id ?? it?.estatus_id ?? it ?? "");
+      const name = String(it?.Nombre ?? it?.nombre ?? it?.area ?? it?.puesto ?? it?.turno ?? it?.estatus ?? id);
       const areaId = it?.AreaId ?? it?.areaId ?? null;
-      return { id: String(id), name: String(name), areaId };
+      return { id, name, areaId };
     });
   }
 
-  // carga catálogos al abrir el sheet
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -584,10 +571,10 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
           fetchJSON(API.estatus, { headers, signal: ac.signal }),
         ]);
         if (!alive) return;
-        setAreas(toIdName(Array.isArray(a) ? a : []));
-        setTurnos(toIdName(Array.isArray(t) ? t : []));
-        setPuestos(toIdName(Array.isArray(p) ? p : []));
-        setEstatus(toIdName(Array.isArray(e) ? e : []));
+        setAreas(toIdName(a));
+        setTurnos(toIdName(t));
+        setPuestos(toIdName(p));
+        setEstatus(toIdName(e));
       } catch (e) {
         if (alive) setOptError("No se pudieron cargar los catálogos.");
       } finally {
@@ -598,38 +585,56 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
     return () => { alive = false; ac.abort(); };
   }, [open]);
 
-  // filtrar puestos por área (si catálogo trae AreaId)
+  // Puestos filtrados por área
   const puestosFiltrados = useMemo(() => {
-    if (!detail?.areaId) return puestos;
-    return puestos.filter(p => String(p.areaId ?? "") === String(detail.areaId));
-  }, [puestos, detail?.areaId]);
+    if (!detail?.area_id) return puestos;
+    return puestos.filter(p => String(p.areaId ?? "") === String(detail.area_id));
+  }, [puestos, detail?.area_id]);
 
-  const setField = (k, v) => setDetail((d) => ({ ...d, [k]: v }));
+  const setField = (key, value) => setDetail(prev => ({ ...prev, [key]: value }));
+
+  // Este es el truco: sincronizar cuando los catálogos ya cargaron
+  useEffect(() => {
+    if (!detail || !open || optLoading) return;
+    // Aseguramos que los IDs sean strings para que coincidan con value del select
+    setDetail(prev => ({
+      ...prev,
+      area_id: String(prev?.area_id ?? ""),
+      puesto_id: String(prev?.puesto_id ?? ""),
+      turno_id: String(prev?.turno_id ?? ""),
+      estatus_id: String(prev?.estatus_id ?? ""),
+    }));
+  }, [detail, open, optLoading]);
 
   function validate(d) {
     const e = {};
-    if (!d?.nombre || !d.nombre.trim()) e.nombre = "El nombre es obligatorio";
-    if (!(d?.email || d?.correo) || !isEmail(d.email || d.correo)) e.email = "Correo inválido";
-    if (d.telefono && !isPhone(d.telefono)) e.telefono = "Teléfono inválido";
-    if (!isPositiveInt(d.areaId)) e.areaId = "Área ID inválido";
-    if (!isPositiveInt(d.puestoId)) e.puestoId = "Puesto ID inválido";
-    if (!isPositiveInt(d.turnoId)) e.turnoId = "Turno ID inválido";
-    if (!isPositiveInt(d.estatusId)) e.estatusId = "Estatus ID inválido";
+    if (!d?.nombre?.trim()) e.nombre = "El nombre es obligatorio";
+    if (!isEmail(d.correo || d.email || "")) e.email = "Correo inválido";
+    if (!isPositiveInt(d.area_id)) e.area_id = "Selecciona un área";
+    if (!isPositiveInt(d.puesto_id)) e.puesto_id = "Selecciona un puesto";
+    if (!isPositiveInt(d.turno_id)) e.turno_id = "Selecciona un turno";
+    if (!isPositiveInt(d.estatus_id)) e.estatus_id = "Selecciona un estatus";
     setFieldErrors(e);
     return Object.keys(e).length === 0;
   }
 
   async function submit(e) {
     e.preventDefault();
-    if (!detail || busy) return;
+    if (busy || !detail) return;
     setErr("");
     if (!validate(detail)) return;
     setBusy(true);
     try {
-      await onSave(detail); // tu saveDetail ya castea a Number(...)
+      await onSave({
+        ...detail,
+        areaId: Number(detail.area_id),
+        puestoId: Number(detail.puesto_id),
+        turnoId: Number(detail.turno_id),
+        estatusId: Number(detail.estatus_id),
+      });
       setEditMode(false);
     } catch (ex) {
-      setErr(ex.message || "No se pudo guardar.");
+      setErr(ex.message || "No se pudo guardar los cambios.");
     } finally {
       setBusy(false);
     }
@@ -638,121 +643,87 @@ function EmployeeDetailSheet({ open, onClose, detail, setDetail, onSave, loading
   return (
     <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
       <div className={`absolute inset-0 bg-black/40 transition-opacity ${open ? "opacity-100" : "opacity-0"}`} onClick={onClose} />
-      <aside className={`absolute right-0 top-0 h-full w-full max-w-md sm:max-w-lg md:max-w-xl bg-white shadow-xl transition-transform ${open ? "translate-x-0" : "translate-x-full"}`} role="dialog" aria-modal="true" aria-label="Detalle de empleado" onClick={(e) => e.stopPropagation()}>
+      <aside className={`absolute right-0 top-0 h-full w-full max-w-md sm:max-w-lg md:max-w-xl bg-white shadow-xl transition-transform ${open ? "translate-x-0" : "translate-x-full"}`} onClick={e => e.stopPropagation()}>
         <header className="h-14 px-5 flex items-center justify-between border-b">
           <h2 className="text-lg font-semibold">{editMode ? "Editar empleado" : "Detalle del empleado"}</h2>
           <div className="flex items-center gap-2">
             {!editMode && (
-              <button className="p-2 rounded hover:bg-slate-100" onClick={() => setEditMode(true)} title="Editar" aria-label="Editar">
+              <button className="p-2 rounded hover:bg-slate-100" onClick={() => setEditMode(true)}>
                 <span className="material-symbols-outlined">edit</span>
               </button>
             )}
-            <button className="p-2 rounded hover:bg-slate-100" onClick={onClose} aria-label="Cerrar">
+            <button className="p-2 rounded hover:bg-slate-100" onClick={onClose}>
               <span className="material-symbols-outlined">close</span>
             </button>
           </div>
         </header>
 
-        <div className="p-5 space-y-4">
-          {loading && <p className="text-slate-500">Cargando…</p>}
-          {!loading && error && <p className="text-red-600">{error}</p>}
+        <div className="p-5 space-y-6 overflow-y-auto h-[calc(100%-3.5rem)]">
+          {loading && <p className="text-center text-slate-500">Cargando detalle...</p>}
+          {error && <p className="text-red-600 text-center">{error}</p>}
 
-          {!loading && !error && detail && (
+          {detail && !loading && (
             editMode ? (
-              <form className="space-y-4" onSubmit={submit} noValidate>
-                {err && <p className="text-sm text-red-600">{err}</p>}
+              <form onSubmit={submit} className="space-y-5">
+                {err && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{err}</div>}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField label="Nombre" required icon="person" placeholder={PLACEHOLDERS.nombre} value={detail.nombre || ""} onChange={(e) => setField("nombre", e.target.value)} error={fieldErrors.nombre} />
-                  <FormField label="Correo" required icon="mail" type="email" placeholder={PLACEHOLDERS.email} value={detail.email || detail.correo || ""} onChange={(e) => setField("email", e.target.value)} error={fieldErrors.email} />
-                  <FormField label="Teléfono" icon="call" placeholder={PLACEHOLDERS.telefono} value={detail.telefono || ""} onChange={(e) => setField("telefono", e.target.value)} error={fieldErrors.telefono} />
-                  <FormField label="Fecha de ingreso" icon="event" type="date" placeholder={PLACEHOLDERS.fecha} value={detail.fechaIngreso || ""} onChange={(e) => setField("fechaIngreso", e.target.value)} />
-
-                  {/* === Dropdowns con Nombre (value=Id); fallback numérico === */}
-                  {/* Área */}
-                  {areas.length ? (
-                    <FormField as="select" label="Área" required icon="apartment"
-                      value={detail.areaId ?? ""} onChange={(e) => { setField("areaId", e.target.value); setField("puestoId", ""); }}
-                      error={fieldErrors.areaId}>
-                      <option value="" disabled>{PLACEHOLDERS.areaId}</option>
-                      {areas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </FormField>
-                  ) : (
-                    <FormField label="Área ID" required icon="apartment" type="number" inputMode="numeric" min="1"
-                      placeholder={PLACEHOLDERS.areaId} value={detail.areaId ?? ""} onChange={(e) => setField("areaId", e.target.value)} error={fieldErrors.areaId} />
-                  )}
-
-                  {/* Puesto (filtrado por área si aplica) */}
-                  {(puestosFiltrados.length || puestos.length) ? (
-                    <FormField as="select" label="Puesto" required icon="workspace_premium"
-                      value={detail.puestoId ?? ""} onChange={(e) => setField("puestoId", e.target.value)}
-                      error={fieldErrors.puestoId} disabled={!detail.areaId}>
-                      <option value="" disabled>{PLACEHOLDERS.puestoId}</option>
-                      {(puestosFiltrados.length ? puestosFiltrados : puestos).map(o =>
-                        <option key={o.id} value={o.id}>{o.name}</option>
-                      )}
-                    </FormField>
-                  ) : (
-                    <FormField label="Puesto ID" required icon="workspace_premium" type="number" inputMode="numeric" min="1"
-                      placeholder={PLACEHOLDERS.puestoId} value={detail.puestoId ?? ""} onChange={(e) => setField("puestoId", e.target.value)} error={fieldErrors.puestoId} />
-                  )}
-
-                  {/* Turno */}
-                  {turnos.length ? (
-                    <FormField as="select" label="Turno" required icon="schedule"
-                      value={detail.turnoId ?? ""} onChange={(e) => setField("turnoId", e.target.value)}
-                      error={fieldErrors.turnoId}>
-                      <option value="" disabled>{PLACEHOLDERS.turnoId}</option>
-                      {turnos.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </FormField>
-                  ) : (
-                    <FormField label="Turno ID" required icon="schedule" type="number" inputMode="numeric" min="1"
-                      placeholder={PLACEHOLDERS.turnoId} value={detail.turnoId ?? ""} onChange={(e) => setField("turnoId", e.target.value)} error={fieldErrors.turnoId} />
-                  )}
-
-                  {/* Estatus (Activo, Inactivo, Suspendido, Baja) */}
-                  {estatus.length ? (
-                    <FormField as="select" label="Estatus" required icon="verified_user"
-                      value={detail.estatusId ?? ""} onChange={(e) => setField("estatusId", e.target.value)}
-                      error={fieldErrors.estatusId}>
-                      <option value="" disabled>{PLACEHOLDERS.estatusId}</option>
-                      {estatus.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </FormField>
-                  ) : (
-                    <FormField label="Estatus ID" required icon="verified_user" type="number" inputMode="numeric" min="1"
-                      placeholder={PLACEHOLDERS.estatusId} value={detail.estatusId ?? ""} onChange={(e) => setField("estatusId", e.target.value)} error={fieldErrors.estatusId} />
-                  )}
+                  <FormField label="Nombre" required icon="person" value={detail.nombre || ""} onChange={e => setField("nombre", e.target.value)} error={fieldErrors.nombre} />
+                  <FormField label="Correo" required icon="mail" type="email" value={detail.correo || detail.email || ""} onChange={e => setField("correo", e.target.value)} error={fieldErrors.email} />
+                  <FormField label="Teléfono" icon="call" value={detail.telefono || ""} onChange={e => setField("telefono", e.target.value)} />
+                  <FormField label="Fecha ingreso" icon="event" type="date" value={detail.fechaIngreso || ""} onChange={e => setField("fechaIngreso", e.target.value)} />
                 </div>
 
-                {/* contexto de labels actuales */}
-                <p className="text-xs text-slate-500">
-                  {detail.area && <>Área actual: <b>{detail.area}</b> · </>}
-                  {detail.puesto && <>Puesto actual: <b>{detail.puesto}</b> · </>}
-                  {detail.turno && <>Turno actual: <b>{detail.turno}</b> · </>}
-                  {detail.estatus && <>Estatus actual: <b>{detail.estatus}</b></>}
-                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Área */}
+                  <FormField as="select" label="Área" required icon="apartment" value={detail.area_id ?? ""} onChange={e => { setField("area_id", e.target.value); setField("puesto_id", ""); }} error={fieldErrors.area_id}>
+                    <option value="" disabled>Selecciona área</option>
+                    {areas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </FormField>
 
-                <div className="flex justify-end gap-2">
-                  <button type="button" className="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50" onClick={() => setEditMode(false)}>
-                    Cancelar
-                  </button>
-                  <button type="submit" className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white" disabled={busy}>
+                  {/* Puesto */}
+                  <FormField as="select" label="Puesto" required icon="work" value={detail.puesto_id ?? ""} onChange={e => setField("puesto_id", e.target.value)} error={fieldErrors.puesto_id} disabled={!detail.area_id}>
+                    <option value="" disabled>Selecciona puesto</option>
+                    {(puestosFiltrados.length ? puestosFiltrados : puestos).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </FormField>
+
+                  {/* Turno */}
+                  <FormField as="select" label="Turno" required icon="schedule" value={detail.turno_id ?? ""} onChange={e => setField("turno_id", e.target.value)} error={fieldErrors.turno_id}>
+                    <option value="" disabled>Selecciona turno</option>
+                    {turnos.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </FormField>
+
+                  {/* Estatus */}
+                  <FormField as="select" label="Estatus" required icon="verified_user" value={detail.estatus_id ?? ""} onChange={e => setField("estatus_id", e.target.value)} error={fieldErrors.estatus_id}>
+                    <option value="" disabled>Selecciona estatus</option>
+                    {estatus.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </FormField>
+                </div>
+
+                {/* Info actual */}
+                <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg">
+                  Área actual: <b>{detail.area}</b> · Puesto actual: <b>{detail.puesto}</b> · Turno actual: <b>{detail.turno}</b> · Estatus actual: <b>{detail.estatus}</b>
+                </div>
+
+                {optLoading && <p className="text-xs text-slate-500 text-center">Cargando catálogos...</p>}
+                {optError && <p className="text-xs text-red-600 text-center">{optError}</p>}
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <button type="button" className="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50" onClick={() => setEditMode(false)}>Cancelar</button>
+                  <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
                     {busy ? "Guardando..." : "Guardar"}
                   </button>
                 </div>
-
-                {optLoading && <p className="text-xs text-slate-500">Cargando catálogos…</p>}
-                {optError && <p className="text-xs text-red-600">{optError}</p>}
               </form>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                {/*<Info label="ID" value={detail.id} />*/}
+              <div className="space-y-4 text-sm">
                 <Info label="Nombre" value={detail.nombre} />
-                <Info label="Correo" value={detail.email || detail.correo} />
+                <Info label="Correo" value={detail.correo || detail.email} />
                 <Info label="Teléfono" value={detail.telefono || "—"} />
                 <Info label="Fecha ingreso" value={detail.fechaIngreso || "—"} />
-                <Info label="Área" value={detail.area || "—"} />
-                <Info label="Puesto" value={detail.puesto || "—"} />
-                <Info label="Turno" value={detail.turno || "—"} />
+                <Info label="Área" value={detail.area} />
+                <Info label="Puesto" value={detail.puesto} />
+                <Info label="Turno" value={detail.turno} />
                 <Info label="Estatus" value={<StatusBadge status={detail.estatus} />} />
               </div>
             )
@@ -826,62 +797,77 @@ export default function EmployeeTable() {
   }, []);
 
   // Al seleccionar fila: traer detalle {id}/detalle con prefill
+  // === REEMPLAZA ESTE useEffect completo ===
   useEffect(() => {
     if (!selectedId) return;
+
     let alive = true;
     const ac = new AbortController();
 
+    // 1. Primero ponemos datos básicos de la tabla (para no parpadear)
     const row = data.find((x) => x.id === selectedId);
     if (row) {
       setDetail({
         id: row.id,
-        nombre: row.name,
-        email: row.email,
+        nombre: row.name || "",
+        correo: row.email || "",
         telefono: "",
         fechaIngreso: "",
-        area: row.dept,
-        puesto: row.role,
-        turno: row.shift,
-        estatus: row.status,
-        areaId: row.areaId,
-        puestoId: row.puestoId,
-        turnoId: row.turnoId,
-        estatusId: row.estatusId,
+        area: row.dept || "",
+        puesto: row.role || "",
+        turno: row.shift || "",
+        estatus: row.status || "",
+        // ← AQUÍ ESTÁN LOS IDs reales de la tabla (los que SÍ tienes)
+        area_id: String(row.areaId ?? ""),
+        puesto_id: String(row.puestoId ?? ""),
+        turno_id: String(row.turnoId ?? ""),
+        estatus_id: String(row.estatusId ?? ""),
       });
     }
-    setDetailOpen(true);
-    setDetailError("");
-    setDetailLoading(true);
 
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailError("");
+
+    // 2. Luego cargamos el detalle completo del API
     (async () => {
       try {
-        const it = await fetchJSON(API.detail(selectedId), { headers: { ...ACCEPT_JSON, ...authHeaders() }, signal: ac.signal });
+        const it = await fetchJSON(API.detail(selectedId), {
+          headers: { ...ACCEPT_JSON, ...authHeaders() },
+          signal: ac.signal,
+        });
+
         if (!alive || !it) return;
-        const rowNorm = mapRow(it);
+
+        // Normalizamos todo al formato que espera el formulario
         setDetail((prev) => ({
           ...prev,
-          id: it.id ?? prev?.id,
-          nombre: it.nombre ?? prev?.nombre ?? "",
-          email: it.email ?? it.correo ?? prev?.email ?? "",
-          telefono: it.telefono ?? prev?.telefono ?? "",
-          fechaIngreso: it.fechaIngreso ?? prev?.fechaIngreso ?? "",
-          area: rowNorm.dept || prev?.area || "",
-          puesto: rowNorm.role || prev?.puesto || "",
-          turno: rowNorm.shift || prev?.turno || "",
-          estatus: rowNorm.status || prev?.estatus || "",
-          areaId: rowNorm.areaId ?? prev?.areaId ?? "",
-          puestoId: rowNorm.puestoId ?? prev?.puestoId ?? "",
-          turnoId: rowNorm.turnoId ?? prev?.turnoId ?? "",
-          estatusId: rowNorm.estatusId ?? prev?.estatusId ?? "",
+          nombre: it.nombre || prev.nombre || "",
+          correo: it.correo || it.email || prev.correo || "",
+          telefono: it.telefono || prev.telefono || "",
+          fechaIngreso: it.fechaIngreso || prev.fechaIngreso || "",
+          // Nombres legibles
+          area: it.area || prev.area || "",
+          puesto: it.puesto || prev.puesto || "",
+          turno: it.turno || prev.turno || "",
+          estatus: it.estatus || prev.estatus || "",
+          // ← ESTOS SON LOS IDs DEL BACKEND (snake_case)
+          area_id: String(it.area_id ?? it.areaId ?? prev.area_id ?? ""),
+          puesto_id: String(it.puesto_id ?? it.puestoId ?? prev.puesto_id ?? ""),
+          turno_id: String(it.turno_id ?? it.turnoId ?? prev.turno_id ?? ""),
+          estatus_id: String(it.estatus_id ?? it.estatusId ?? prev.estatus_id ?? ""),
         }));
       } catch (ex) {
-        if (alive) setDetailError("No se pudo cargar el detalle.");
+        if (alive) setDetailError("Error al cargar detalle");
       } finally {
         if (alive) setDetailLoading(false);
       }
     })();
 
-    return () => { alive = false; ac.abort(); };
+    return () => {
+      alive = false;
+      ac.abort();
+    };
   }, [selectedId, data]);
 
   // Util: recargar lista entera
@@ -930,7 +916,7 @@ export default function EmployeeTable() {
       email: d.email ?? d.correo,    // compat con backend
       correo: d.email ?? d.correo,   // compat
       telefono: d.telefono || null,
-      fechaIngreso: fechaIso,        // 👈 ahora sí se envía
+      fechaIngreso: fechaIso,        
       areaId: toInt(d.areaId, "Área ID"),
       puestoId: toInt(d.puestoId, "Puesto ID"),
       turnoId: toInt(d.turnoId, "Turno ID"),
@@ -944,7 +930,7 @@ export default function EmployeeTable() {
     try {
       updated = await fetchJSON(`${API.base}/${d.id}`, {
         method: "PUT",
-        headers: { ...JSON_HEADERS, ...authHeaders() }, // 👈 token
+        headers: { ...JSON_HEADERS, ...authHeaders() }, 
         body: JSON.stringify(payload),
       });
     } catch (ex) {
@@ -1026,7 +1012,7 @@ export default function EmployeeTable() {
     const row = data.find((x) => x.id === id);
     setConfirmDel({ open: true, id, name: row?.name || "" });
   }
-  
+
   async function doDelete() {
     const { id, name } = confirmDel;
 
@@ -1146,8 +1132,8 @@ export default function EmployeeTable() {
                   <th className="w-10 py-3 pl-4 pr-2 text-left font-semibold"><span className="sr-only">Sel</span></th>
                   <th className="py-3 px-4 text-left font-semibold">Nombre</th>
                   <th className="py-3 px-4 text-left font-semibold">Correo</th>
-                  <th className="py-3 px-4 text-left font-semibold">Cargo</th>
-                  <th className="py-3 px-4 text-left font-semibold">Departamento</th>
+                  <th className="py-3 px-4 text-left font-semibold">Puesto</th>
+                  <th className="py-3 px-4 text-left font-semibold">Área</th>
                   <th className="py-3 px-4 text-left font-semibold">Turno</th>
                   <th className="py-3 px-4 text-left font-semibold">Estado</th>
                   <th className="py-3 px-4 text-left font-semibold">Acciones</th>

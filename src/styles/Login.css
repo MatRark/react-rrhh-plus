@@ -1,4 +1,4 @@
-/* Login.css - Estilos específicos siguiendo lineamientos UI/UX RHPlus */
+/* Login.css - Diseño Split Card siguiendo lineamientos UI/UX RHPlus */
 
 /* Variables de colores según lineamientos */
 :root {
@@ -21,6 +21,7 @@
   --gray-500: #6b7280;
   --gray-600: #4b5563;
   --gray-700: #374151;
+  --gray-800: #1f2937;
   --gray-900: #111827;
   
   /* Tipografía */
@@ -30,6 +31,7 @@
   --text-lg: 1.125rem;
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
   
   /* Espaciado */
   --space-1: 0.25rem;
@@ -39,32 +41,58 @@
   --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
   
   /* Bordes */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
   
   /* Sombras */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
 }
 
-/* Contenedor principal del login con imagen de fondo */
-.login-container,
-.success-container {
+/* Contenedor principal con fondo sólido */
+.login-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  background: linear-gradient(135deg, #efeff1 0%, #c2f1ff 100%);
+  padding: var(--space-4);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Imagen de fondo profesional para RRHH */
-.login-container::before,
-.success-container::before {
+/* Card principal dividido */
+.login-card {
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  min-height: 600px;
+  background: white;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Sección izquierda con imagen */
+.login-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.9) 0%, rgba(3, 105, 161, 0.95) 100%);
+  position: relative;
+  padding: var(--space-8);
+  overflow: hidden;
+}
+
+/* Imagen de fondo en la sección izquierda */
+.login-left::before {
   content: '';
   position: absolute;
   top: 0;
@@ -75,76 +103,96 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0.6; /* Reducida la opacidad de la imagen */
+  opacity: 0.3;
   z-index: 1;
 }
 
-/* Overlay para mejorar legibilidad - MÁS OSCURO */
-.background-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(2, 132, 199, 0.3) 0%,
-    rgba(3, 105, 161, 0.4) 50%,
-    rgba(14, 165, 233, 0.3) 100%
-  );
-  z-index: 2;
-}
-
-/* Card del login - MÁS SÓLIDO */
-.login-card,
-.success-card {
-  width: 100%;
-  max-width: 400px;
-  background: rgba(255, 255, 255, 0.98); /* Más opaco */
-  backdrop-filter: blur(8px); /* Menos blur */
-  border-radius: var(--radius-lg);
-  padding: var(--space-8);
-  box-shadow: var(--shadow-lg);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+/* Contenido sobre la imagen */
+.login-left-content {
   position: relative;
-  z-index: 3;
-  margin: var(--space-4);
-}
-
-/* Header del login */
-.login-header {
-  text-align: center;
-  margin-bottom: var(--space-6);
-}
-
-.login-icon {
+  z-index: 2;
   display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Branding en la parte superior */
+.login-branding {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.login-logo {
+  font-size: 3rem;
+  color: white;
+}
+
+.login-brand-text h1 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Información adicional en la izquierda */
+.login-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
-  margin-bottom: var(--space-3);
-  color: var(--primary-500);
-  font-size: 2.5rem;
+  color: white;
+}
+
+.login-info h2 {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  margin: 0 0 var(--space-4) 0;
+  line-height: 1.3;
+}
+
+.login-info p {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  opacity: 0.95;
+  margin: 0;
+}
+
+/* Sección derecha con formulario */
+.login-right {
+  flex: 1;
+  padding: var(--space-10);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Header del formulario */
+.login-header {
+  margin-bottom: var(--space-8);
 }
 
 .login-title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: 700;
   color: var(--gray-900);
   margin: 0 0 var(--space-2) 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Sombra sutil para mejor legibilidad */
 }
 
 .login-subtitle {
-  font-size: var(--text-sm);
-  color: var(--gray-700); /* Color más oscuro */
+  font-size: var(--text-base);
+  color: var(--gray-600);
   margin: 0;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 /* Formulario */
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 .form-group {
@@ -154,34 +202,32 @@
 .form-label {
   display: block;
   margin-bottom: var(--space-2);
-  font-weight: 600; /* Más negrita */
+  font-weight: 600;
   font-size: var(--text-sm);
-  color: var(--gray-800); /* Más oscuro */
+  color: var(--gray-800);
 }
 
 .form-input {
   width: 100%;
-  padding: var(--space-3);
-  border: 1px solid var(--gray-300);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--gray-300);
   border-radius: var(--radius-lg);
   font-size: var(--text-base);
   color: var(--gray-900);
   transition: all 0.2s ease-in-out;
   line-height: 1.5;
-  background: rgba(255, 255, 255, 0.95); /* Más sólido */
-  font-weight: 500;
+  background: white;
+  font-weight: 400;
 }
 
 .form-input::placeholder {
-  color: var(--gray-500);
-  font-weight: 400;
+  color: var(--gray-400);
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
-  background: white;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }
 
 .form-input.input-error {
@@ -193,28 +239,46 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
+/* Input con icono */
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: var(--space-4);
+  color: var(--gray-400);
+  font-size: 1.25rem;
+  z-index: 1;
+}
+
+.input-with-icon .form-input {
+  padding-left: 3rem;
+}
+
 /* Mensajes de error/éxito */
 .message-box {
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
   font-size: var(--text-sm);
   margin-bottom: var(--space-4);
   animation: slideIn 0.3s ease-out;
-  background: white; /* Fondo sólido */
   border: 1px solid;
   font-weight: 500;
 }
 
 .message-error {
-  background-color: rgba(239, 68, 68, 0.05);
+  background-color: rgba(239, 68, 68, 0.1);
   color: var(--error-500);
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: var(--error-500);
 }
 
 .message-success {
-  background-color: rgba(16, 185, 129, 0.05);
+  background-color: rgba(16, 185, 129, 0.1);
   color: var(--success-500);
-  border-color: rgba(16, 185, 129, 0.2);
+  border-color: var(--success-500);
 }
 
 /* Botón primario */
@@ -222,7 +286,7 @@
   width: 100%;
   background: var(--primary-500);
   color: white;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   font-weight: 600;
   font-size: var(--text-base);
@@ -254,160 +318,7 @@
   transform: none;
 }
 
-/* Pantalla de éxito */
-.success-content {
-  text-align: center;
-}
-
-.success-icon-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-5);
-}
-
-.success-icon-circle {
-  width: 3rem;
-  height: 3rem;
-  background-color: rgba(16, 185, 129, 0.1);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.success-icon {
-  font-size: 1.5rem;
-  color: var(--success-500);
-}
-
-.success-title {
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  color: var(--success-500);
-  margin: 0 0 var(--space-3) 0;
-}
-
-.success-description {
-  font-size: var(--text-base);
-  color: var(--gray-700);
-  margin: 0 0 var(--space-5) 0;
-  line-height: 1.5;
-  font-weight: 500;
-}
-
-.redirect-info {
-  margin-bottom: var(--space-5);
-}
-
-.redirect-label {
-  font-size: var(--text-sm);
-  color: var(--gray-600);
-  margin: 0;
-  font-weight: 500;
-}
-
-.redirect-countdown {
-  font-size: var(--text-base);
-  color: var(--primary-500);
-  font-weight: 600;
-  margin: var(--space-2) 0 0 0;
-}
-
-/* Barra de progreso */
-.progress-bar-container {
-  width: 100%;
-  background-color: var(--gray-200);
-  border-radius: var(--radius-sm);
-  height: 0.5rem;
-  overflow: hidden;
-}
-
-.progress-bar {
-  background: var(--success-500);
-  height: 100%;
-  border-radius: var(--radius-sm);
-  transition: width 1s linear;
-}
-
-/* Inputs con íconos */
-.input-with-icon {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-icon {
-  position: absolute;
-  left: var(--space-3);
-  color: var(--gray-500);
-  font-size: 1.25rem;
-  z-index: 1;
-}
-
-.input-with-icon .form-input {
-  padding-left: 2.5rem;
-  border-radius: var(--radius-lg);
-}
-
-/* Logo más grande */
-.login-icon .material-symbols-outlined {
-  font-size: 3.5rem;
-}
-
-/* Animaciones */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsive */
-@media (max-width: 640px) {
-  .login-card,
-  .success-card {
-    margin: var(--space-4);
-    padding: var(--space-6);
-    background: rgba(255, 255, 255, 0.98); /* Mantener sólido en móvil */
-  }
-  
-  .login-title,
-  .success-title {
-    font-size: var(--text-xl);
-  }
-  
-  .login-container::before,
-  .success-container::before {
-    opacity: 0.5; /* Menos opacidad en móvil */
-  }
-}
-
-/* Mejora para dispositivos muy pequeños */
-@media (max-width: 380px) {
-  .login-card,
-  .success-card {
-    margin: var(--space-2);
-    padding: var(--space-4);
-  }
-}
-
-/* Efectos de hover mejorados para inputs */
-.form-input:hover {
-  border-color: var(--gray-400);
-  background: white;
-}
-
-/* Mejora de contraste para textos importantes */
-.login-title,
-.form-label,
-.success-title {
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
-}
-/* Success Modal Styles - Sin opacidad para mejor legibilidad */
+/* Success Modal Styles */
 .success-modal-container {
   position: fixed;
   top: 0;
@@ -418,49 +329,12 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-}
-
-.success-modal-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-.success-modal-background::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url('/image_login.avif');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0.7;
-  z-index: 1;
-}
-
-.success-modal-background .background-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(2, 132, 199, 0.4) 0%,
-    rgba(3, 105, 161, 0.5) 50%,
-    rgba(14, 165, 233, 0.4) 100%
-  );
-  z-index: 2;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .success-modal {
   position: relative;
-  background: #ffffff; /* Fondo completamente sólido */
+  background: #ffffff;
   border-radius: 24px;
   padding: 3rem 2rem 2rem;
   text-align: center;
@@ -470,7 +344,6 @@
   animation: modalSlideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   border: 1px solid #e5e7eb;
   z-index: 3;
-  /* Eliminamos backdrop-filter y cualquier transparencia */
 }
 
 .success-animation {
@@ -498,96 +371,34 @@
   animation: checkmarkScale 0.3s 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
-.success-confetti {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-.confetti-piece {
-  position: absolute;
-  width: 8px;
-  height: 16px;
-  background: linear-gradient(45deg, #10b981, #059669, #047857);
-  opacity: 0;
-  animation: confettiRain 0.8s 0.0s ease-out forwards;
-}
-
-.confetti-piece:nth-child(1) {
-  left: 10%;
-  animation-delay: 0.5s;
-  background: linear-gradient(45deg, #10b981, #059669);
-}
-.confetti-piece:nth-child(2) {
-  left: 20%;
-  animation-delay: 0.6s;
-  background: linear-gradient(45deg, #059669, #047857);
-}
-.confetti-piece:nth-child(3) {
-  left: 30%;
-  animation-delay: 0.7s;
-  background: linear-gradient(45deg, #10b981, #059669);
-}
-.confetti-piece:nth-child(4) {
-  left: 40%;
-  animation-delay: 0.8s;
-  background: linear-gradient(45deg, #059669, #047857);
-}
-.confetti-piece:nth-child(5) {
-  left: 50%;
-  animation-delay: 0.9s;
-  background: linear-gradient(45deg, #10b981, #059669);
-}
-.confetti-piece:nth-child(6) {
-  left: 60%;
-  animation-delay: 1s;
-  background: linear-gradient(45deg, #059669, #047857);
-}
-.confetti-piece:nth-child(7) {
-  left: 70%;
-  animation-delay: 1.1s;
-  background: linear-gradient(45deg, #10b981, #059669);
-}
-.confetti-piece:nth-child(8) {
-  left: 80%;
-  animation-delay: 1.2s;
-  background: linear-gradient(45deg, #059669, #047857);
-}
-.confetti-piece:nth-child(9) {
-  left: 90%;
-  animation-delay: 1.3s;
-  background: linear-gradient(45deg, #10b981, #059669);
-}
-.confetti-piece:nth-child(10) {
-  left: 95%;
-  animation-delay: 1.4s;
-  background: linear-gradient(45deg, #059669, #047857);
-}
-
-.success-content {
-  animation: contentFadeIn 0.5s 0.8s both;
-}
-
-.success-title {
+.success-content .success-title {
   font-size: 1.75rem;
   font-weight: 700;
   color: #047857;
   margin: 0 0 1rem 0;
   line-height: 1.2;
-  text-shadow: none; /* Eliminamos cualquier sombra que pueda afectar legibilidad */
 }
 
 .success-message {
-  color: #4b5563; /* Color más oscuro para mejor contraste */
+  color: #4b5563;
   font-size: 1rem;
   line-height: 1.5;
   margin: 0;
   font-weight: 500;
 }
 
-/* Animations */
+/* Animaciones */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes modalSlideIn {
   from {
     opacity: 0;
@@ -627,24 +438,287 @@
   }
 }
 
-@keyframes confettiRain {
-  0% {
-    opacity: 0;
-    transform: translateY(-100px) rotate(0deg);
+/* Responsive */
+@media (max-width: 768px) {
+  .login-card {
+    flex-direction: column;
+    min-height: auto;
   }
-  50% {
-    opacity: 1;
+  
+  .login-left {
+    min-height: 250px;
+    padding: var(--space-6);
   }
-  100% {
-    opacity: 0;
-    transform: translateY(100px) rotate(360deg);
+  
+  .login-info {
+    display: none;
+  }
+  
+  .login-branding {
+    margin-bottom: var(--space-4);
+  }
+  
+  .login-brand-text h1 {
+    font-size: var(--text-2xl);
+  }
+  
+  .login-logo {
+    font-size: 2.5rem;
+  }
+  
+  .login-right {
+    padding: var(--space-6);
+  }
+  
+  .login-title {
+    font-size: var(--text-2xl);
   }
 }
 
-@keyframes contentFadeIn {
+@media (max-width: 480px) {
+  .login-container {
+    padding: var(--space-2);
+  }
+  
+  .login-left {
+    min-height: 200px;
+    padding: var(--space-4);
+  }
+  
+  .login-right {
+    padding: var(--space-4);
+  }
+  
+  .login-header {
+    margin-bottom: var(--space-6);
+  }
+  
+  .login-title {
+    font-size: var(--text-xl);
+  }
+  
+  .success-modal {
+    padding: 2.5rem 1.5rem 1.5rem;
+    margin: 1rem;
+  }
+}
+
+/* ========================================
+   NUEVO SUCCESS MODAL - DISEÑO INNOVADOR
+   ======================================== */
+
+.success-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+/* Ondas animadas de fondo */
+.wave-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.wave {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  transform: translateX(-50%);
+  border-radius: 45%;
+  opacity: 0.15;
+}
+
+.wave-1 {
+  background: rgba(255, 255, 255, 0.3);
+  animation: waveRotate 8s infinite linear;
+}
+
+.wave-2 {
+  background: rgba(255, 255, 255, 0.2);
+  animation: waveRotate 10s infinite linear reverse;
+}
+
+.wave-3 {
+  background: rgba(255, 255, 255, 0.1);
+  animation: waveRotate 12s infinite linear;
+}
+
+@keyframes waveRotate {
+  0% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  100% {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+/* Contenedor principal del éxito */
+.success-wrapper {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: successFadeIn 0.4s ease-out;
+}
+
+@keyframes successFadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Efecto Ripple */
+.ripple-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  pointer-events: none;
+}
+
+.ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  opacity: 0;
+}
+
+.ripple-1 {
+  animation: rippleExpand 1.3s ease-out;
+}
+
+.ripple-2 {
+  animation: rippleExpand 1.3s 0.2s ease-out;
+}
+
+.ripple-3 {
+  animation: rippleExpand 1.3s 0.4s ease-out;
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* Check animado con SVG */
+.check-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 2rem;
+  animation: checkBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes checkBounce {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) rotate(0deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.check-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+}
+
+.check-circle {
+  stroke: #ffffff;
+  stroke-width: 3;
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  animation: strokeCircle 0.6s 0.2s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+@keyframes strokeCircle {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.check-path {
+  stroke: #ffffff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: strokeCheck 0.4s 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+@keyframes strokeCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Texto animado */
+.success-text-wrapper {
+  text-align: center;
+  color: white;
+  margin-bottom: 2rem;
+}
+
+.success-heading {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  animation: textSlideUp 0.6s 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
+}
+
+.success-subtext {
+  font-size: 1.1rem;
+  font-weight: 400;
+  margin: 0;
+  opacity: 0.95;
+  animation: textSlideUp 0.6s 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
+}
+
+@keyframes textSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -652,38 +726,66 @@
   }
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-  .success-modal {
-    padding: 2.5rem 1.5rem 1.5rem;
-    margin: 1rem;
-    background: #ffffff; /* Mantener sólido en móvil */
+/* Barra de progreso */
+.progress-container {
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  animation: progressFadeIn 0.3s 0.8s both;
+}
+
+@keyframes progressFadeIn {
+  from {
+    opacity: 0;
+    transform: scaleX(0.5);
   }
-  
-  .success-circle {
-    width: 70px;
-    height: 70px;
-  }
-  
-  .success-checkmark {
-    font-size: 2rem;
-  }
-  
-  .success-title {
-    font-size: 1.5rem;
-  }
-  
-  .success-message {
-    font-size: 0.9rem;
-    color: #4b5563; /* Mantener contraste en móvil */
-  }
-  
-  .success-modal-background::before {
-    opacity: 0.6;
+  to {
+    opacity: 1;
+    transform: scaleX(1);
   }
 }
 
-/* Elimina cualquier regla duplicada o conflictiva */
-.success-modal-backdrop {
-  display: none; /* Ocultamos el backdrop anterior si existe */
+.progress-bar-success {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 1));
+  border-radius: 10px;
+  animation: progressFill 1.3s ease-out forwards;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes progressFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* Responsive para Success Modal */
+@media (max-width: 640px) {
+  .check-container {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 1.5rem;
+  }
+  
+  .success-heading {
+    font-size: 2rem;
+  }
+  
+  .success-subtext {
+    font-size: 1rem;
+  }
+  
+  .progress-container {
+    width: 250px;
+  }
+  
+  .ripple-container {
+    width: 150px;
+    height: 150px;
+  }
 }

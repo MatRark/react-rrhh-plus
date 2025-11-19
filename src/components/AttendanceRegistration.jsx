@@ -75,7 +75,7 @@ export default function AttendanceRegistration() {
       } else if (msg.includes("token") || msg.includes("Unauthorized")) {
         setInfoMessage("Tu sesión expiró. Inicia sesión nuevamente.");
       } else {
-        setInfoMessage("Ocurrió un error al registrar la asistencia.");
+        setInfoMessage("No pudimos registrar tu asistencia. Por favor, inténtalo de nuevo en unos momentos.");
       }
     } finally {
       setLoading(false);

@@ -129,6 +129,15 @@ export default function RecruitmentPanel() {
 
     try {
       const v = await getVacanteById(vacanteId);
+
+      // Validación: si la vacante está cerrada, no permitir edición
+      if (v.estatus?.toLowerCase() === "cerrada") {
+        setError("No se puede editar una vacante que ya está cerrada.");
+        setOpenModal(false);
+        setLoadingModal(false);
+        return;
+      }
+
       setSelectedVacante(v);
 
       setForm({
@@ -338,8 +347,8 @@ export default function RecruitmentPanel() {
               <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl">
                 <p className="text-sm text-slate-500">Estado</p>
                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${selectedVacante?.estatus?.toLowerCase() === 'abierta'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-red-100 text-red-800'
                   }`}>
                   {selectedVacante?.estatus === 'abierta' ? 'Abierta' : 'Cerrada'}
                 </span>
@@ -643,7 +652,12 @@ export default function RecruitmentPanel() {
                             </button>
                             <button
                               onClick={() => abrirEditar(v.vacanteId)}
-                              className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600"
+                              disabled={v.estatus?.toLowerCase() === "cerrada"}
+                              className={`p-1.5 rounded-lg text-yellow-600 ${v.estatus?.toLowerCase() === "cerrada"
+                                  ? "opacity-50 cursor-not-allowed hover:bg-transparent"
+                                  : "hover:bg-yellow-100"
+                                }`}
+                              title={v.estatus?.toLowerCase() === "cerrada" ? "No se puede editar una vacante cerrada" : "Editar"}
                             >
                               <span className="material-symbols-outlined text-lg">edit</span>
                             </button>
